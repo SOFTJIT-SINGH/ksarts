@@ -7,10 +7,15 @@ import { Product } from "@/lib/types";
 
 /**
  * Fetches all products from MongoDB Atlas.
- * Falls back to mock data if MongoDB is unreachable or empty.
+ * Falls back to mock data if MONGODB_URI is not set or empty.
  */
 export async function getProductsAction(): Promise<{ success: boolean; data?: Product[]; error?: string }> {
   try {
+    if (!process.env.MONGODB_URI) {
+      console.warn("MONGODB_URI environment variable is not defined. Using mock data mode.");
+      return { success: true, data: [] };
+    }
+
     await connectToDatabase();
     const rawProducts = await ProductModel.find({}).sort({ createdAt: -1 }).lean();
 
@@ -49,6 +54,10 @@ export async function getProductsAction(): Promise<{ success: boolean; data?: Pr
  */
 export async function createProductAction(productData: Partial<Product>): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!process.env.MONGODB_URI) {
+      return { success: false, error: "MONGODB_URI is not configured in environment variables." };
+    }
+
     await connectToDatabase();
 
     let status: Product["status"] = "In Stock";

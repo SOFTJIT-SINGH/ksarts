@@ -1,7 +1,5 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -19,9 +17,11 @@ if (!global.mongooseCache) {
 }
 
 export async function connectToDatabase(): Promise<typeof mongoose> {
-  if (!MONGODB_URI) {
+  const mongodbUri = process.env.MONGODB_URI;
+
+  if (!mongodbUri) {
     throw new Error(
-      "Please define the MONGODB_URI environment variable inside .env"
+      "MONGODB_URI environment variable is missing. Please add MONGODB_URI in your Vercel Project Settings."
     );
   }
 
@@ -34,7 +34,7 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
+    cached.promise = mongoose.connect(mongodbUri, opts).then((mongooseInstance) => {
       console.log("Connected successfully to MongoDB Atlas");
       return mongooseInstance;
     });

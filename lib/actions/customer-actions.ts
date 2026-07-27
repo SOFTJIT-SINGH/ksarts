@@ -10,6 +10,11 @@ import { Customer } from "@/lib/types";
  */
 export async function getCustomersAction(): Promise<{ success: boolean; data?: Customer[]; error?: string }> {
   try {
+    if (!process.env.MONGODB_URI) {
+      console.warn("MONGODB_URI environment variable is not defined. Using mock data mode.");
+      return { success: true, data: [] };
+    }
+
     await connectToDatabase();
     const rawCustomers = await CustomerModel.find({}).sort({ totalPurchasesINR: -1 }).lean();
 

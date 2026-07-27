@@ -10,6 +10,11 @@ import { SaleTransaction } from "@/lib/types";
  */
 export async function getSalesAction(): Promise<{ success: boolean; data?: SaleTransaction[]; error?: string }> {
   try {
+    if (!process.env.MONGODB_URI) {
+      console.warn("MONGODB_URI environment variable is not defined. Using mock data mode.");
+      return { success: true, data: [] };
+    }
+
     await connectToDatabase();
     const rawSales = await SaleModel.find({}).sort({ createdAt: -1 }).lean();
 
