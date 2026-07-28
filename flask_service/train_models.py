@@ -24,7 +24,7 @@ def train_and_save_models():
     sales_model = RandomForestRegressor(n_estimators=100, random_state=42)
     sales_model.fit(months, revenue)
     joblib.dump(sales_model, "models/sales_model.joblib")
-    print("✓ Saved models/sales_model.joblib")
+    print("[OK] Saved models/sales_model.joblib")
 
     # 2. Train Customer Segmentation Model (K-Means Clustering)
     print("Training Customer K-Means Segmentation Model...")
@@ -38,7 +38,7 @@ def train_and_save_models():
     kmeans_model = KMeans(n_clusters=3, random_state=42, n_init=10)
     kmeans_model.fit(customer_data)
     joblib.dump(kmeans_model, "models/customer_kmeans.joblib")
-    print("✓ Saved models/customer_kmeans.joblib")
+    print("[OK] Saved models/customer_kmeans.joblib")
 
     print("\n[SUCCESS] All Machine Learning models trained and serialized successfully!")
 
