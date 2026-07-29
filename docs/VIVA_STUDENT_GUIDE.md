@@ -6,6 +6,10 @@
 **Project Field:** Data Science / Machine Learning / Decision Support Systems  
 **Architecture:** Decoupled Architecture (Next.js 16 DSS Frontend + Python 3 Flask ML Service + MongoDB Atlas)
 
+> [!TIP]
+> **Confused by terms like Flask, Random Forest, or K-Means?**  
+> Don't worry! I have created a dedicated crash course just for you. Before diving into the questions, please read the **[Beginner to Advanced Crash Course](file:///d:/Projects/Khushi%20Project/ksarts/docs/CRASH_COURSE.md)**. It explains every single term used in this document in an easy "Explain Like I'm 5" (ELI5) format.
+
 ---
 
 ## 📌 Executive Project Summary (30-Second Elevator Pitch for Examiner)

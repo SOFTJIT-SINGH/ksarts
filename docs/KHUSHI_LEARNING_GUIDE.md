@@ -5,6 +5,10 @@
 **Time available:** 2-3 months before viva  
 **Purpose:** Understand every technology in your project so you can confidently explain it to any examiner
 
+> [!TIP]
+> **New to all these terms?**  
+> I have created a **[Beginner to Advanced Crash Course](file:///d:/Projects/Khushi%20Project/ksarts/docs/CRASH_COURSE.md)** just for you! It explains every single term (Flask, Random Forest, K-Means, etc.) starting from a 5-year-old level to advanced Viva level. Read that first!
+
 ---
 
 ## 📖 Table of Contents
