@@ -96,15 +96,15 @@ React is a JavaScript library for building user interfaces. Next.js is a framewo
 
 ---
 
-## 8. MongoDB Atlas
+## 8. Supabase PostgreSQL
 ### 👶 ELI5 (Explain Like I'm 5)
-Imagine a traditional database (SQL) is an Excel spreadsheet. Everything must fit into strict rows and columns. MongoDB is like a digital filing cabinet where you can just throw in a complete Word document (a JSON file) for a customer, without worrying about strict columns. Atlas just means this filing cabinet is stored in the Cloud (on the internet) instead of on your laptop.
+Imagine a traditional database is like a perfectly organized Excel spreadsheet where every piece of data has a strict column. PostgreSQL is one of the most powerful versions of this spreadsheet. However, setting it up is very hard. **Supabase** is like renting an entire super-smart filing room on the internet, where everything is pre-built. You don't have to build the shelves; you just put your data in.
 
 ### 👩‍🎓 Beginner
-MongoDB is a NoSQL database. It saves data (like Products and Customers) in flexible, dictionary-like formats called JSON documents. MongoDB Atlas is the cloud-hosted version, meaning your database is live on the internet and will not be lost if your computer crashes.
+Supabase is a "Backend-as-a-Service" (BaaS). It gives us a professional PostgreSQL database hosted in the cloud. Instead of writing complex server code to connect to our database, Supabase gives us easy tools to securely read our Products, Customers, and Sales straight from our Next.js frontend.
 
 ### 👩‍💻 Advanced (For Viva)
-"MongoDB is a NoSQL, document-oriented database that stores data in BSON (Binary JSON) format. We chose it over SQL because textile catalog items have highly variable attributes (e.g., sarees have 'weave type', but plain fabrics only have 'GSM'). MongoDB Atlas provides a fully managed cloud database solution, and we interact with it using the Mongoose Object Data Modeling (ODM) library."
+"We migrated from MongoDB to Supabase, which leverages a powerful PostgreSQL relational database. Supabase provides an auto-generated REST API on top of Postgres, allowing us to perform CRUD operations effortlessly. We utilize its strict schema definitions, Foreign Key constraints for relational integrity between Sales and Products, and plan to leverage its Row Level Security (RLS) for our authentication flow."
 
 ---
 

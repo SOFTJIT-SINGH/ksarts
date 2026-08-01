@@ -1,10 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import ProductModel from "@/lib/models/Product";
-import CustomerModel from "@/lib/models/Customer";
-import SaleModel from "@/lib/models/Sale";
+import { supabase } from "@/lib/supabase/client";
 import {
   MOCK_PRODUCTS,
   MOCK_CUSTOMERS,
@@ -13,7 +10,7 @@ import {
 
 /**
  * 1-Click Database Seeder
- * Populates MongoDB Atlas with realistic Indian Textile domain mock dataset.
+ * Populates Supabase Postgres with realistic Indian Textile domain mock dataset.
  */
 export async function seedDatabaseAction(): Promise<{
   success: boolean;
@@ -21,12 +18,15 @@ export async function seedDatabaseAction(): Promise<{
   error?: string;
 }> {
   try {
-    await connectToDatabase();
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
+    }
 
-    // 1. Clear existing collections
-    await ProductModel.deleteMany({});
-    await CustomerModel.deleteMany({});
-    await SaleModel.deleteMany({});
+    // 1. Clear existing collections (due to FK cascades, deleting from products/customers/sales deletes everything)
+    await supabase.from("sale_items").delete().neq("id", "00000000-0000-0000-0000-000000000000"); // trick to delete all
+    await supabase.from("sales").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("customers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("products").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
     // 2. Insert Products
     const productsToInsert = MOCK_PRODUCTS.map((p) => ({
@@ -45,7 +45,12 @@ export async function seedDatabaseAction(): Promise<{
       supplierName: p.supplierName,
       status: p.status,
     }));
-    const insertedProducts = await ProductModel.insertMany(productsToInsert);
+    const { data: insertedProducts, error: pError } = await supabase
+      .from("products")
+      .insert(productsToInsert)
+      .select();
+
+    if (pError || !insertedProducts) throw pError || new Error("Failed to insert products");
 
     // 3. Insert Customers
     const customersToInsert = MOCK_CUSTOMERS.map((c) => ({
@@ -59,22 +64,20 @@ export async function seedDatabaseAction(): Promise<{
       totalOrdersCount: c.totalOrdersCount,
       creditLimitINR: c.creditLimitINR,
       outstandingBalanceINR: c.outstandingBalanceINR,
-      lastPurchaseDate: new Date(c.lastPurchaseDate),
+      lastPurchaseDate: new Date(c.lastPurchaseDate).toISOString(),
     }));
-    const insertedCustomers = await CustomerModel.insertMany(customersToInsert);
+    const { data: insertedCustomers, error: cError } = await supabase
+      .from("customers")
+      .insert(customersToInsert)
+      .select();
+
+    if (cError || !insertedCustomers) throw cError || new Error("Failed to insert customers");
 
     // 4. Insert Sales Invoices
     const salesToInsert = MOCK_SALES.map((s, index) => ({
       invoiceNumber: s.invoiceNumber,
-      customerId: insertedCustomers[index % insertedCustomers.length]._id.toString(),
+      customerId: insertedCustomers[index % insertedCustomers.length].id,
       customerName: s.customerName,
-      items: s.items.map((i) => ({
-        productId: insertedProducts[0]._id.toString(),
-        productName: i.productName,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        totalPrice: i.totalPrice,
-      })),
       subtotalINR: s.subtotalINR,
       taxINR: s.taxINR,
       discountINR: s.discountINR,
@@ -83,7 +86,34 @@ export async function seedDatabaseAction(): Promise<{
       paymentStatus: s.paymentStatus,
       salesPerson: s.salesPerson,
     }));
-    await SaleModel.insertMany(salesToInsert);
+    
+    const { data: insertedSales, error: sError } = await supabase
+      .from("sales")
+      .insert(salesToInsert)
+      .select();
+
+    if (sError || !insertedSales) throw sError || new Error("Failed to insert sales");
+
+    // 5. Insert Sale Items
+    const saleItemsToInsert = [];
+    for (let i = 0; i < MOCK_SALES.length; i++) {
+      const mockSale = MOCK_SALES[i];
+      const saleId = insertedSales[i].id;
+      
+      for (const item of mockSale.items) {
+        saleItemsToInsert.push({
+          saleId: saleId,
+          productId: insertedProducts[0].id, // fallback to first product
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+        });
+      }
+    }
+
+    const { error: siError } = await supabase.from("sale_items").insert(saleItemsToInsert);
+    if (siError) throw siError;
 
     // Revalidate view paths
     revalidatePath("/");
@@ -96,13 +126,13 @@ export async function seedDatabaseAction(): Promise<{
 
     return {
       success: true,
-      message: `Successfully seeded MongoDB Atlas with ${insertedProducts.length} Products, ${insertedCustomers.length} Customers, and ${salesToInsert.length} Sales Invoices!`,
+      message: `Successfully seeded Supabase Postgres with ${insertedProducts.length} Products, ${insertedCustomers.length} Customers, and ${insertedSales.length} Sales Invoices!`,
     };
   } catch (error: any) {
     console.error("Database seeding failed:", error);
     return {
       success: false,
-      error: error.message || "Failed to seed MongoDB Atlas database",
+      error: error.message || "Failed to seed Supabase database",
     };
   }
 }

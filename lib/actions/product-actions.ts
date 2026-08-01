@@ -1,30 +1,33 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import ProductModel from "@/lib/models/Product";
+import { supabase } from "@/lib/supabase/client";
 import { Product } from "@/lib/types";
 
 /**
- * Fetches all products from MongoDB Atlas.
- * Falls back to mock data if MONGODB_URI is not set or empty.
+ * Fetches all products from Supabase PostgreSQL.
+ * Falls back to mock data if NEXT_PUBLIC_SUPABASE_URL is not set.
  */
 export async function getProductsAction(): Promise<{ success: boolean; data?: Product[]; error?: string }> {
   try {
-    if (!process.env.MONGODB_URI) {
-      console.warn("MONGODB_URI environment variable is not defined. Using mock data mode.");
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.warn("NEXT_PUBLIC_SUPABASE_URL is not defined. Using mock data mode.");
       return { success: true, data: [] };
     }
 
-    await connectToDatabase();
-    const rawProducts = await ProductModel.find({}).sort({ createdAt: -1 }).lean();
+    const { data: rawProducts, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
 
+    if (error) throw error;
+    
     if (!rawProducts || rawProducts.length === 0) {
       return { success: true, data: [] };
     }
 
     const products: Product[] = rawProducts.map((doc: any) => ({
-      id: doc._id.toString(),
+      id: doc.id,
       sku: doc.sku,
       name: doc.name,
       category: doc.category,
@@ -39,26 +42,24 @@ export async function getProductsAction(): Promise<{ success: boolean; data?: Pr
       reorderLevel: doc.reorderLevel,
       supplierName: doc.supplierName,
       status: doc.status,
-      createdAt: doc.createdAt?.toISOString().split("T")[0] || new Date().toISOString().split("T")[0],
+      createdAt: doc.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
     }));
 
     return { success: true, data: products };
   } catch (error: any) {
-    console.error("Error fetching products from MongoDB:", error);
+    console.error("Error fetching products from Supabase:", error);
     return { success: false, error: error.message || "Failed to fetch products" };
   }
 }
 
 /**
- * Creates a new Product in MongoDB Atlas.
+ * Creates a new Product in Supabase PostgreSQL.
  */
 export async function createProductAction(productData: Partial<Product>): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!process.env.MONGODB_URI) {
-      return { success: false, error: "MONGODB_URI is not configured in environment variables." };
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
     }
-
-    await connectToDatabase();
 
     let status: Product["status"] = "In Stock";
     if (productData.stockQuantity === 0) {
@@ -67,22 +68,26 @@ export async function createProductAction(productData: Partial<Product>): Promis
       status = "Low Stock";
     }
 
-    await ProductModel.create({
-      sku: productData.sku,
-      name: productData.name,
-      category: productData.category,
-      fabricType: productData.fabricType,
-      weaveType: productData.weaveType,
-      gsm: productData.gsm,
-      color: productData.color,
-      unitPrice: productData.unitPrice,
-      mrp: productData.mrp,
-      stockQuantity: productData.stockQuantity,
-      unitOfMeasure: productData.unitOfMeasure,
-      reorderLevel: productData.reorderLevel,
-      supplierName: productData.supplierName,
-      status,
-    });
+    const { error } = await supabase.from("products").insert([
+      {
+        sku: productData.sku,
+        name: productData.name,
+        category: productData.category,
+        fabricType: productData.fabricType,
+        weaveType: productData.weaveType,
+        gsm: productData.gsm,
+        color: productData.color,
+        unitPrice: productData.unitPrice,
+        mrp: productData.mrp,
+        stockQuantity: productData.stockQuantity,
+        unitOfMeasure: productData.unitOfMeasure,
+        reorderLevel: productData.reorderLevel,
+        supplierName: productData.supplierName,
+        status,
+      }
+    ]);
+
+    if (error) throw error;
 
     revalidatePath("/products");
     revalidatePath("/inventory");

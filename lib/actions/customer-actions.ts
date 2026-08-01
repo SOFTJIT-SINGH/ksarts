@@ -1,29 +1,32 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import CustomerModel from "@/lib/models/Customer";
+import { supabase } from "@/lib/supabase/client";
 import { Customer } from "@/lib/types";
 
 /**
- * Fetches all customer accounts from MongoDB Atlas.
+ * Fetches all customer accounts from Supabase PostgreSQL.
  */
 export async function getCustomersAction(): Promise<{ success: boolean; data?: Customer[]; error?: string }> {
   try {
-    if (!process.env.MONGODB_URI) {
-      console.warn("MONGODB_URI environment variable is not defined. Using mock data mode.");
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.warn("NEXT_PUBLIC_SUPABASE_URL environment variable is not defined. Using mock data mode.");
       return { success: true, data: [] };
     }
 
-    await connectToDatabase();
-    const rawCustomers = await CustomerModel.find({}).sort({ totalPurchasesINR: -1 }).lean();
+    const { data: rawCustomers, error } = await supabase
+      .from("customers")
+      .select("*")
+      .order("totalPurchasesINR", { ascending: false });
+
+    if (error) throw error;
 
     if (!rawCustomers || rawCustomers.length === 0) {
       return { success: true, data: [] };
     }
 
     const customers: Customer[] = rawCustomers.map((doc: any) => ({
-      id: doc._id.toString(),
+      id: doc.id,
       name: doc.name,
       businessName: doc.businessName,
       phone: doc.phone,
@@ -34,12 +37,12 @@ export async function getCustomersAction(): Promise<{ success: boolean; data?: C
       totalOrdersCount: doc.totalOrdersCount,
       creditLimitINR: doc.creditLimitINR,
       outstandingBalanceINR: doc.outstandingBalanceINR,
-      lastPurchaseDate: doc.lastPurchaseDate?.toISOString().split("T")[0] || new Date().toISOString().split("T")[0],
+      lastPurchaseDate: doc.lastPurchaseDate?.split("T")[0] || new Date().toISOString().split("T")[0],
     }));
 
     return { success: true, data: customers };
   } catch (error: any) {
-    console.error("Error fetching customers from MongoDB:", error);
+    console.error("Error fetching customers from Supabase:", error);
     return { success: false, error: error.message || "Failed to fetch customers" };
   }
 }

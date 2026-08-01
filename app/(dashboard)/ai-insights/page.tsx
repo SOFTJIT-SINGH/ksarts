@@ -162,7 +162,7 @@ export default function AIInsightsPage() {
               <div>
                 <CardTitle className="text-base font-bold">4. Product Bundle Recommendation</CardTitle>
                 <CardDescription className="text-xs">
-                  Apriori Association Rule Mining ("Frequently Bought Together")
+                  Apriori Association Rule Mining (&quot;Frequently Bought Together&quot;)
                 </CardDescription>
               </div>
             </div>

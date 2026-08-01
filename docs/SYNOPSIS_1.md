@@ -43,7 +43,7 @@ This project addresses these gaps by designing and implementing a **Decision Sup
 The motivation for this project stems from three key observations:
 
 1. **Data-rich but insight-poor businesses:** Textile wholesalers accumulate vast transactional data across products, customers, and invoices, but lack tools to extract actionable patterns from this data.
-2. **Seasonal demand volatility:** Textile demand is highly seasonal (wedding seasons, Diwali, Eid, summer collections). Manual inventory planning leads to either dead stock (overstocking) or lost sales (stockouts).
+2. **Seasonal demand volatility:** Textile demand is highly seasonal (wedding seasons, Diwali, Eid, summer tables). Manual inventory planning leads to either dead stock (overstocking) or lost sales (stockouts).
 3. **Academic relevance:** This project provides an opportunity to apply Data Science and Machine Learning algorithms — Random Forest Regression, K-Means Clustering, TimeSeries Analysis, and Apriori Association Mining — to a real-world business domain, bridging the gap between theoretical knowledge and practical application.
 
 ### 1.3 Existing Solutions and Differentiation
@@ -91,7 +91,7 @@ The textile retail sector in India is valued at over ₹10 lakh crore (IBEF, 202
 
 ### 3.2 Secondary Objectives
 
-6. Deploy the web application on a cloud hosting platform (Vercel) with a cloud database (MongoDB Atlas) for universal accessibility.
+6. Deploy the web application on a cloud hosting platform (Vercel) with a cloud database (Supabase Postgres) for universal accessibility.
 
 7. Build a resilient architecture where the DSS dashboard functions independently even when the ML microservice is offline, using intelligent mock fallback predictions.
 
@@ -116,9 +116,9 @@ The proposed system follows a **Decoupled Three-Tier Architecture** comprising:
                            ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                      DATA LAYER                              │
-│              (MongoDB Atlas + Mongoose ORM)                   │
+│              (Supabase Postgres + Supabase Client)                   │
 │                                                              │
-│   Products Collection │ Customers Collection │ Sales Collection│
+│   Products table │ Customers table │ Sales table│
 └──────────────────────────────────────────────────────────────┘
                            │
                            ▼
@@ -133,7 +133,7 @@ The proposed system follows a **Decoupled Three-Tier Architecture** comprising:
 
 **Layer 1 — Presentation Layer (Next.js 16):** Renders the DSS dashboard, handles user interactions (role switching, form submissions, navigation), and displays charts and KPI visualizations using the Recharts library.
 
-**Layer 2 — Data Layer (MongoDB Atlas):** Stores all persistent business data — product catalog (SKU, fabric type, pricing, stock levels), customer profiles (RFM metrics, credit limits, segmentation), and sales invoices (line items, GST calculations, payment status). Connected via Mongoose ORM through Next.js Server Actions.
+**Layer 2 — Data Layer (Supabase Postgres):** Stores all persistent business data — product catalog (SKU, fabric type, pricing, stock levels), customer profiles (RFM metrics, credit limits, segmentation), and sales invoices (line items, GST calculations, payment status). Connected via Supabase Client through Next.js Server Actions.
 
 **Layer 3 — Intelligence Layer (Flask + Scikit-Learn):** A lightweight Python microservice that loads pre-trained ML model artifacts (`.joblib` files) and exposes REST API endpoints for real-time inference. The frontend communicates with this layer through a server-side HTTP bridge (`ai-service.ts`) that gracefully falls back to mock predictions if the Flask service is offline.
 
@@ -143,13 +143,13 @@ The project follows a **UI-First Development Methodology**:
 
 1. **Phase 1 — Design System & UI Shell:** Establish visual design tokens (Light Theme color palette, typography, spacing system) and build the complete dashboard interface with 8 pages using realistic Indian textile domain mock data.
 
-2. **Phase 2 — Database Integration:** Connect the UI to MongoDB Atlas cloud database via Mongoose ORM. Implement Server Actions for Create, Read, Update, Delete (CRUD) operations. Build a 1-Click Database Seeder for instant data initialization.
+2. **Phase 2 — Database Integration:** Connect the UI to Supabase Postgres cloud database via Supabase Client. Implement Server Actions for Create, Read, Update, Delete (CRUD) operations. Build a 1-Click Database Seeder for instant data initialization.
 
 3. **Phase 3 — Interactive CRUD Modals:** Add form-based dialogs for creating new products, customers, and sales invoices with Zod schema validation.
 
 4. **Phase 4 — ML Microservice Development:** Train Scikit-Learn models on textile sales datasets. Build the Flask REST API to serve predictions. Connect the frontend to Flask via a resilient HTTP bridge.
 
-5. **Phase 5 — Testing, Verification & Documentation:** Execute strict TypeScript type-checking (`npx tsc --noEmit`), production build verification (`npm run build`), and generate comprehensive project documentation.
+5. **Phase 5 — Testing, Verification & rowation:** Execute strict TypeScript type-checking (`npx tsc --noEmit`), production build verification (`npm run build`), and generate comprehensive project rowation.
 
 ### 4.3 ML Algorithms Used
 
@@ -164,9 +164,9 @@ The project follows a **UI-First Development Methodology**:
 
 ## 5. System Design
 
-### 5.1 Database Schema (MongoDB Collections)
+### 5.1 Database Schema (Supabase tables)
 
-#### Products Collection
+#### Products table
 ```
 {
   _id:            ObjectId (auto-generated primary key)
@@ -189,7 +189,7 @@ The project follows a **UI-First Development Methodology**:
 }
 ```
 
-#### Customers Collection
+#### Customers table
 ```
 {
   _id:                   ObjectId
@@ -209,12 +209,12 @@ The project follows a **UI-First Development Methodology**:
 }
 ```
 
-#### Sales Collection
+#### Sales table
 ```
 {
   _id:              ObjectId
   invoiceNumber:    String    (e.g., "INV-2026-0789")
-  customerId:       ObjectId  (reference to Customers collection)
+  customerId:       ObjectId  (reference to Customers table)
   customerName:     String
   items:            Array [   (line items)
     {
@@ -339,7 +339,7 @@ erDiagram
 │        │                 │                     │             │
 │        ▼                 ▼                     ▼             │
 │  ┌──────────────────────────────┐   ┌───────────────────┐   │
-│  │     MongoDB Atlas            │   │  Flask ML Service  │   │
+│  │     Supabase Postgres            │   │  Flask ML Service  │   │
 │  │  (Products, Customers, Sales)│   │  (Scikit-Learn)    │   │
 │  └──────────────────────────────┘   └───────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
@@ -385,8 +385,8 @@ erDiagram
 | Technology | Version | Purpose |
 |---|---|---|
 | **Node.js** | 20+ LTS | JavaScript runtime for Next.js server execution |
-| **MongoDB Atlas** | Cloud (M0 Free Tier) | NoSQL document database for flexible textile product schemas |
-| **Mongoose** | 8.x | Object Document Mapper (ODM) for MongoDB schema validation and querying |
+| **Supabase Postgres** | Cloud (M0 Free Tier) | PostgreSQL relational database for flexible textile product schemas |
+| **Supabase Client** | 8.x | Object row Mapper (ODM) for Supabase schema validation and querying |
 | **Next.js Server Actions** | Built-in | Type-safe server functions for secure database CRUD operations |
 
 ### 6.3 Machine Learning Technologies
@@ -420,7 +420,7 @@ erDiagram
 | **Processor** | Intel Core i3 (8th Gen) or equivalent |
 | **RAM** | 4 GB (8 GB recommended) |
 | **Storage** | 2 GB free disk space |
-| **Internet** | Broadband connection (for MongoDB Atlas and Vercel) |
+| **Internet** | Broadband connection (for Supabase Postgres and Vercel) |
 | **Display** | 1366 × 768 resolution or higher |
 
 ### 7.2 Software Requirements
@@ -435,7 +435,7 @@ erDiagram
 | **VS Code** | Latest | Integrated Development Environment |
 | **Git** | v2.40+ | Version control |
 | **Web Browser** | Chrome / Edge / Firefox (latest) | Application access and testing |
-| **MongoDB Atlas** | Cloud (M0 Free) | Cloud database (no local installation needed) |
+| **Supabase Postgres** | Cloud (M0 Free) | Cloud database (no local installation needed) |
 
 ---
 
@@ -462,8 +462,8 @@ Upon completion, the system will deliver a **fully functional, cloud-deployed De
 | 1 | Live deployed DSS web application | URL (Vercel) |
 | 2 | Source code repository | GitHub |
 | 3 | Trained ML model artifacts | `.joblib` files |
-| 4 | Project Synopsis | Document (this file) |
-| 5 | Final Project Report | Document |
+| 4 | Project Synopsis | row (this file) |
+| 5 | Final Project Report | row |
 | 6 | Student Viva Preparation Guide | Markdown |
 | 7 | Project Demonstration | Live demo during viva |
 
@@ -476,10 +476,10 @@ Upon completion, the system will deliver a **fully functional, cloud-deployed De
 | Phase | Duration | Activities | Status |
 |---|---|---|---|
 | **Phase 1:** Design System & UI Shell | Week 1–2 | Establish Light Theme design tokens, build responsive Sidebar + Header layout, create 8 dashboard pages with Indian textile mock data, implement KPI cards and Recharts visualizations | ✅ Complete |
-| **Phase 2:** Database Integration | Week 3–4 | Set up MongoDB Atlas cloud database, define Mongoose schemas (Product, Customer, Sale), implement Server Actions for CRUD operations, build 1-Click Database Seeder | ✅ Complete |
-| **Phase 3:** Interactive Modals & CRUD | Week 5–6 | Build Product Add/Edit form modal with Zod validation, connect pages to live MongoDB data with mock fallback, implement role-based access control (Admin vs Employee) | ✅ Complete |
+| **Phase 2:** Database Integration | Week 3–4 | Set up Supabase Postgres cloud database, define SQL schemas (Product, Customer, Sale), implement Server Actions for CRUD operations, build 1-Click Database Seeder | ✅ Complete |
+| **Phase 3:** Interactive Modals & CRUD | Week 5–6 | Build Product Add/Edit form modal with Zod validation, connect pages to live Supabase data with mock fallback, implement role-based access control (Admin vs Employee) | ✅ Complete |
 | **Phase 4:** ML Microservice | Week 7–10 | Train RandomForest and KMeans models using Scikit-Learn, build Flask REST API endpoints, implement AI service bridge in Next.js with graceful fallback handling | ✅ Complete |
-| **Phase 5:** Testing & Documentation | Week 11–12 | Execute TypeScript strict type-checking (0 errors), production build verification (0 errors), write project documentation, create Student Viva Guide | ✅ Complete |
+| **Phase 5:** Testing & rowation | Week 11–12 | Execute TypeScript strict type-checking (0 errors), production build verification (0 errors), write project rowation, create Student Viva Guide | ✅ Complete |
 | **Phase 6:** Enhancements | Week 13–16 | Customer and Sale creation modals, full Apriori and TimeSeries implementation in Flask, PDF report export, final viva preparation | 🔜 Planned |
 
 ### 9.2 Key Milestones
@@ -487,7 +487,7 @@ Upon completion, the system will deliver a **fully functional, cloud-deployed De
 | Milestone | Target | Status |
 |---|---|---|
 | Complete UI with all 8 pages | Week 2 | ✅ Achieved |
-| MongoDB Atlas connected & seeded | Week 4 | ✅ Achieved |
+| Supabase Postgres connected & seeded | Week 4 | ✅ Achieved |
 | First ML model serving predictions | Week 8 | ✅ Achieved |
 | Production build with 0 errors | Week 11 | ✅ Achieved |
 | Cloud deployment on Vercel | Week 12 | ✅ Achieved |
@@ -511,11 +511,11 @@ Upon completion, the system will deliver a **fully functional, cloud-deployed De
 
 7. India Brand Equity Foundation (IBEF). (2024). *Textile Industry in India*. Available at: https://www.ibef.org/industry/textiles
 
-8. Next.js Documentation. (2026). *Next.js 16 App Router*. Vercel Inc. Available at: https://nextjs.org/docs
+8. Next.js rowation. (2026). *Next.js 16 App Router*. Vercel Inc. Available at: https://nextjs.org/docs
 
-9. MongoDB Documentation. (2026). *MongoDB Atlas — Cloud Database Service*. MongoDB Inc. Available at: https://www.mongodb.com/docs/atlas
+9. Supabase rowation. (2026). *Supabase Postgres — Cloud Database Service*. Supabase Inc. Available at: https://www.Supabase.com/docs/atlas
 
-10. Flask Documentation. (2026). *Flask — Web Development, One Drop at a Time*. Pallets Projects. Available at: https://flask.palletsprojects.com
+10. Flask rowation. (2026). *Flask — Web Development, One Drop at a Time*. Pallets Projects. Available at: https://flask.palletsprojects.com
 
 ---
 

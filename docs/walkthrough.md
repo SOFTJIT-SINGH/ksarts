@@ -3,7 +3,7 @@
 > **AI-Powered Textile Sales & Inventory Prediction System**  
 > **Major Project for B.Tech (CSE, 7th Semester), AGC Amritsar**  
 > **Student Author:** Khushi Soni (Roll No: 2334181)  
-> **Architecture:** Decoupled Web App (Next.js 16 Light Theme + MongoDB Atlas + Python 3 Flask ML Microservice)
+> **Architecture:** Decoupled Web App (Next.js 16 Light Theme + Supabase Postgres + Python 3 Flask ML Microservice)
 
 ---
 
@@ -37,9 +37,9 @@ Traditional billing tools record historical sales but cannot predict future dema
                                      │ Next.js Server Actions
                                      ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                       DATA LAYER (MongoDB Atlas Cloud)                   │
+│                       DATA LAYER (Supabase Postgres Cloud)                   │
 │                                                                          │
-│  Products Collection  │  Customers Collection  │  Sales Invoices         │
+│  Products table  │  Customers table  │  Sales Invoices         │
 └────────────────────────────────────┬─────────────────────────────────────┘
                                      │ HTTP REST API Bridge (ai-service.ts)
                                      ▼
@@ -67,7 +67,7 @@ Traditional billing tools record historical sales but cannot predict future dema
 - **Key Features**:
   - Displays full fabric inventory table (Banarasi Silk Sarees, Chanderi Cotton, Georgette Anarkali, Linen, Suiting).
   - Shows textile-specific specs: **GSM, Weave Type, Fabric Category, Wholesale Price, MRP, Stock Count, and Status Badges**.
-  - **Add Product Modal**: Interactive modal with form validation to add new fabric SKUs directly to MongoDB Atlas.
+  - **Add Product Modal**: Interactive modal with form validation to add new fabric SKUs directly to Supabase Postgres.
 
 ---
 
@@ -107,7 +107,7 @@ Traditional billing tools record historical sales but cannot predict future dema
 
 ### 7. Settings & 1-Click Database Seeder (`/settings`)
 - **Key Features**:
-  - **1-Click MongoDB Atlas Database Seeder**: Instantly populates your cloud database with realistic Indian textile catalog items, customer profiles, and sales invoices.
+  - **1-Click Supabase Postgres Database Seeder**: Instantly populates your cloud database with realistic Indian textile catalog items, customer profiles, and sales invoices.
   - System role configuration and environment checks.
 
 ---
@@ -131,9 +131,9 @@ npm run dev
 # Opens http://localhost:3000 in your browser
 ```
 
-### 2. Seed MongoDB Atlas Cloud Database (1-Click)
+### 2. Seed Supabase Postgres Cloud Database (1-Click)
 1. Go to `http://localhost:3000/settings`.
-2. Click **"Seed MongoDB Atlas (1-Click Init)"**.
+2. Click **"Seed Supabase Postgres (1-Click Init)"**.
 
 ### 3. Run Python Flask ML Microservice (Optional Live AI Mode)
 ```bash
@@ -152,7 +152,7 @@ npm run build        # Production build (0 errors, 11/11 pages static)
 
 ---
 
-## 🎓 Academic Documentation Included
+## 🎓 Academic rowation Included
 - 📄 **[SYNOPSIS_1.md](file:///d:/Projects/Khushi%20Project/ksarts/docs/SYNOPSIS_1.md)**: Full 11-section B.Tech 7th Semester Synopsis for AGC Amritsar.
 - 📄 **[KHUSHI_LEARNING_GUIDE.md](file:///d:/Projects/Khushi%20Project/ksarts/KHUSHI_LEARNING_GUIDE.md)**: 28-chapter ELI5 learning guide for Khushi Soni.
 - 📄 **[VIVA_STUDENT_GUIDE.md](file:///d:/Projects/Khushi%20Project/ksarts/flask_service/VIVA_STUDENT_GUIDE.md)**: 25 expected viva Q&As, 30-second elevator pitch, and demonstration guide.

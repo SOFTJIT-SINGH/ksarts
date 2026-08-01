@@ -4,11 +4,11 @@
 **Student Name:** Khushi Soni  
 **Degree / Year:** B.Tech 4th Year (Computer Science / Data Science)  
 **Project Field:** Data Science / Machine Learning / Decision Support Systems  
-**Architecture:** Decoupled Architecture (Next.js 16 DSS Frontend + Python 3 Flask ML Service + MongoDB Atlas)
+**Architecture:** Decoupled Architecture (Next.js 16 DSS Frontend + Python 3 Flask ML Service + Supabase Postgres)
 
 > [!TIP]
 > **Confused by terms like Flask, Random Forest, or K-Means?**  
-> Don't worry! I have created a dedicated crash course just for you. Before diving into the questions, please read the **[Beginner to Advanced Crash Course](file:///d:/Projects/Khushi%20Project/ksarts/docs/CRASH_COURSE.md)**. It explains every single term used in this document in an easy "Explain Like I'm 5" (ELI5) format.
+> Don't worry! I have created a dedicated crash course just for you. Before diving into the questions, please read the **[Beginner to Advanced Crash Course](file:///d:/Projects/Khushi%20Project/ksarts/docs/CRASH_COURSE.md)**. It explains every single term used in this row in an easy "Explain Like I'm 5" (ELI5) format.
 
 ---
 
@@ -26,7 +26,7 @@
 ### Q1: Why did you decouple Python Flask from Next.js instead of building everything in Next.js?
 **Khushi's Answer:**
 > *"Python has the richest ecosystem for Data Science and Machine Learning libraries (`scikit-learn`, `pandas`, `numpy`, `joblib`). Next.js is an industry-standard framework for building fast, responsive Decision Support UI interfaces.
-> By decoupling the Machine Learning service into a lightweight Flask REST API, we achieve **Separation of Concerns**. The Next.js frontend handles presentation and MongoDB Atlas CRUD, while the Flask service handles ML inference independently. This modularity means the ML models can be retrained or upgraded without modifying the frontend codebase."*
+> By decoupling the Machine Learning service into a lightweight Flask REST API, we achieve **Separation of Concerns**. The Next.js frontend handles presentation and Supabase Postgres CRUD, while the Flask service handles ML inference independently. This modularity means the ML models can be retrained or upgraded without modifying the frontend codebase."*
 
 ---
 
@@ -46,9 +46,9 @@
 
 ---
 
-### Q4: How is data passed between Next.js and MongoDB / Flask?
+### Q4: How is data passed between Next.js and Supabase / Flask?
 **Khushi's Answer:**
-> *"Data mutations (Product additions, sales invoices, customer registrations) flow from Next.js Client Components through **Next.js Server Actions** directly to **MongoDB Atlas via Mongoose ORM**.
+> *"Data mutations (Product additions, sales invoices, customer registrations) flow from Next.js Client Components through **Next.js Server Actions** directly to **Supabase Postgres via Supabase Client**.
 > When the AI Predictions Hub or Executive Dashboard requests forecasts, Next.js calls our server-side `ai-service.ts` client wrapper, which executes an HTTP GET request to the Flask endpoint at `http://127.0.0.1:5000/api/v1/predict/sales`. The JSON response is rendered dynamically using Recharts."*
 
 ---
@@ -67,9 +67,9 @@ npm run dev
 # Opens http://localhost:3000
 ```
 
-### Step 2: Seed MongoDB Atlas Cloud Database (1-Click)
+### Step 2: Seed Supabase Postgres Cloud Database (1-Click)
 1. Open `http://localhost:3000/settings` in your browser.
-2. Click **"Seed MongoDB Atlas (1-Click Init)"**.
+2. Click **"Seed Supabase Postgres (1-Click Init)"**.
 3. Verify that products, customers, and sales invoices are instantly populated.
 
 ### Step 3: Run Python Flask Machine Learning Service (Optional Live AI Mode)
@@ -85,5 +85,5 @@ python app.py
 
 ## 📊 Key Technologies Overview
 - **Frontend & DSS Shell:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide React Icons, Recharts.
-- **Database Layer:** MongoDB Atlas Cloud Database, Mongoose ORM, Next.js Server Actions.
+- **Database Layer:** Supabase Postgres Cloud Database, Supabase Client, Next.js Server Actions.
 - **AI & ML Microservice:** Python 3, Flask, Scikit-Learn, Pandas, NumPy, Joblib serialization.

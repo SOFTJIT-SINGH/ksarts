@@ -28,10 +28,10 @@
 8. [Next.js — The Complete Framework](#8-nextjs--the-complete-framework)
 
 ### Part D — Database Layer (Week 7-8)
-9. [What is a Database? (SQL vs NoSQL Explained)](#9-what-is-a-database-sql-vs-nosql-explained)
-10. [MongoDB — Document Database in Plain Language](#10-mongodb--document-database-in-plain-language)
-11. [MongoDB Atlas — Your Cloud Database](#11-mongodb-atlas--your-cloud-database)
-12. [Mongoose — The MongoDB Helper Library](#12-mongoose--the-mongodb-helper-library)
+9. [What is a Database? (SQL vs SQL Explained)](#9-what-is-a-database-sql-vs-SQL-explained)
+10. [Supabase — row Database in Plain Language](#10-Supabase--row-database-in-plain-language)
+11. [Supabase Postgres — Your Cloud Database](#11-Supabase-atlas--your-cloud-database)
+12. [Supabase Client — The Supabase Helper Library](#12-Supabase Client--the-Supabase-helper-library)
 
 ### Part E — Backend & APIs (Week 9-10)
 13. [What is a Backend Server?](#13-what-is-a-backend-server)
@@ -116,7 +116,7 @@ Your system doesn't sell fabrics online. Instead, it helps the business owner **
 │ • Stock alerts       │   (K-Means)          │
 │                      │ • Bundle Suggestions │
 │ Stores data in:      │   (Apriori)          │
-│ MongoDB Atlas (cloud)│                      │
+│ Supabase Postgres (cloud)│                      │
 │                      │ You already know     │
 │ This guide teaches   │ ALL of this! ✅       │
 │ THIS side ←          │                      │
@@ -168,9 +168,9 @@ User types: ksarts.vercel.app/products
     │                              │
     │  1. Receives the request     │
     │  2. Runs your Next.js code   │
-    │  3. Calls MongoDB Atlas      │
+    │  3. Calls Supabase Postgres      │
     │     "Give me all products"   │
-    │  4. MongoDB returns data     │
+    │  4. Supabase returns data     │
     │  5. Next.js builds the HTML  │
     │     page with product table  │
     │  6. Sends HTML back          │
@@ -209,7 +209,7 @@ This is the most important concept in web development. Let's use a restaurant an
 │           ↕ Chef gets ingredients                            │
 │  ┌───────────────────┐                                       │
 │  │ PANTRY / STORAGE  │  = DATABASE (permanent storage)        │
-│  │ • Raw ingredients │    • MongoDB Atlas (stores Products,   │
+│  │ • Raw ingredients │    • Supabase Postgres (stores Products,   │
 │  │ • Inventory       │      Customers, Sales records)         │
 │  │ • Recipe books    │    • Data persists even when server    │
 │  │                   │      restarts                          │
@@ -225,7 +225,7 @@ This is the most important concept in web development. Let's use a restaurant an
 
 2. **Backend alone** = A kitchen with no dining area. The chef cooks amazing food but no one can eat it. (Your Flask ML model runs predictions but no one can see them.)
 
-3. **Database alone** = A pantry full of ingredients but no chef and no dining area. (You have all the data in MongoDB but no way to display or process it.)
+3. **Database alone** = A pantry full of ingredients but no chef and no dining area. (You have all the data in Supabase but no way to display or process it.)
 
 **Together**, they create a complete experience:
 - **Frontend** shows the user a beautiful dashboard with charts and tables
@@ -238,7 +238,7 @@ This is the most important concept in web development. Let's use a restaurant an
 |---|---|---|
 | **Frontend** | React + Tailwind CSS | `app/(dashboard)/products/page.tsx`, `components/ui/card.tsx` |
 | **Backend** | Next.js Server Actions + Flask | `lib/actions/product-actions.ts`, `flask_service/app.py` |
-| **Database** | MongoDB Atlas + Mongoose | `lib/db/mongodb.ts`, `lib/models/Product.ts` |
+| **Database** | Supabase Postgres + Supabase Client | `lib/db/Supabase.ts`, `supabase/schema.sqlProduct.ts` |
 
 ---
 
@@ -855,7 +855,7 @@ app/
 │   ├── settings/
 │   │   └── page.tsx          →  ksarts.vercel.app/settings   (Settings)
 │   └── layout.tsx            →  Shared sidebar + header wrapper
-└── layout.tsx                →  Root HTML document wrapper
+└── layout.tsx                →  Root HTML row wrapper
 ```
 
 **No routing configuration needed.** Just create a folder + `page.tsx`, and the URL exists automatically.
@@ -869,14 +869,14 @@ Next.js has two types of components:
 | Server Component | Client Component |
 |---|---|
 | Runs on the Vercel server | Runs in the user's browser |
-| Can directly access MongoDB | Cannot access databases directly |
+| Can directly access Supabase | Cannot access databases directly |
 | Cannot use `useState`, `onClick` | Can use `useState`, `onClick`, interactive features |
 | Default (no special tag needed) | Requires `"use client"` at the top of the file |
 | Faster loading | Required for interactivity |
 
 ```tsx
 // Server Component (default) — runs on Vercel's server
-// Can fetch data directly from MongoDB
+// Can fetch data directly from Supabase
 export default async function ProductsPage() {
   const result = await getProductsAction();  // Runs on the server!
   return <div>...</div>;
@@ -905,7 +905,7 @@ export default function ProductModal() {
 
 ---
 
-## 9. What is a Database? (SQL vs NoSQL Explained)
+## 9. What is a Database? (SQL vs SQL Explained)
 
 ### You Already Know SQL
 You've worked with SQL (Structured Query Language). SQL databases store data in rigid **tables with fixed columns**:
@@ -936,14 +936,14 @@ In SQL, you'd either:
 1. **Create separate tables** for each product type (messy, lots of JOINs)
 2. **Add ALL columns** to one table, leaving most NULL (wasteful)
 
-### Enter NoSQL (MongoDB's Approach)
+### Enter SQL (Supabase's Approach)
 
-NoSQL means "Not Only SQL". MongoDB stores data as **flexible documents** — like Python dictionaries. Each document can have different fields:
+SQL means "Not Only SQL". Supabase stores data as **flexible rows** — like Python dictionaries. Each row can have different fields:
 
 ```javascript
-// MongoDB — each product can have different fields!
+// Supabase — each product can have different fields!
 
-// Saree document
+// Saree row
 {
   "name": "Banarasi Silk Saree",
   "price": 8500,
@@ -952,7 +952,7 @@ NoSQL means "Not Only SQL". MongoDB stores data as **flexible documents** — li
   "palluDesign": "Zari Brocade"    // ← Only sarees have this
 }
 
-// Suiting Fabric document
+// Suiting Fabric row
 {
   "name": "Raymond Premium Suiting",
   "price": 1200,
@@ -965,64 +965,64 @@ NoSQL means "Not Only SQL". MongoDB stores data as **flexible documents** — li
 
 **No empty/NULL columns!** Each product stores only what it needs.
 
-### SQL vs MongoDB — Complete Comparison
+### SQL vs Supabase — Complete Comparison
 
-| Aspect | SQL (MySQL/PostgreSQL) | MongoDB |
+| Aspect | SQL (MySQL/PostgreSQL) | Supabase |
 |---|---|---|
-| **Data format** | Tables with rows & columns | Collections with documents (JSON/dictionaries) |
-| **Schema** | Fixed (must define columns first) | Flexible (fields can vary per document) |
-| **Relationships** | JOINs between tables | Embedded documents (nested dictionaries) |
+| **Data format** | Tables with rows & columns | tables with rows (JSON/dictionaries) |
+| **Schema** | Fixed (must define columns first) | Flexible (fields can vary per row) |
+| **Relationships** | JOINs between tables | Embedded rows (nested dictionaries) |
 | **Query language** | `SELECT * FROM products WHERE price > 5000` | `db.products.find({ price: { $gt: 5000 } })` |
 | **Best for** | Banking, accounting (strict structure) | Content management, product catalogs (varied structure) |
 | **Scaling** | Vertical (bigger server) | Horizontal (more servers) |
 | **Your project** | ❌ Too rigid for textile products | ✅ Perfect for heterogeneous fabrics |
 
-### Python/Pandas Analogy for MongoDB
+### Python/Pandas Analogy for Supabase
 
-MongoDB operations map directly to Pandas operations you already know:
+Supabase operations map directly to Pandas operations you already know:
 
 ```python
 import pandas as pd
 
-# MongoDB Collection ≈ Pandas DataFrame
+# Supabase table ≈ Pandas DataFrame
 products_df = pd.DataFrame([
     {"name": "Silk", "price": 8500, "stock": 45},
     {"name": "Cotton", "price": 280, "stock": 200},
 ])
 
-# MongoDB find() ≈ Pandas filtering
+# Supabase find() ≈ Pandas filtering
 products_df[products_df["price"] > 5000]             # df.query()
-# MongoDB equivalent: db.products.find({ price: { $gt: 5000 } })
+# Supabase equivalent: db.products.find({ price: { $gt: 5000 } })
 
-# MongoDB insertOne() ≈ Pandas append/concat
+# Supabase insertOne() ≈ Pandas append/concat
 new_product = {"name": "Linen", "price": 890, "stock": 80}
 products_df = pd.concat([products_df, pd.DataFrame([new_product])])
-# MongoDB equivalent: db.products.insertOne(new_product)
+# Supabase equivalent: db.products.insertOne(new_product)
 
-# MongoDB updateOne() ≈ Pandas .loc assignment
+# Supabase updateOne() ≈ Pandas .loc assignment
 products_df.loc[products_df["name"] == "Silk", "price"] = 9000
-# MongoDB equivalent: db.products.updateOne({ name: "Silk" }, { $set: { price: 9000 } })
+# Supabase equivalent: db.products.updateOne({ name: "Silk" }, { $set: { price: 9000 } })
 
-# MongoDB deleteOne() ≈ Pandas drop
+# Supabase deleteOne() ≈ Pandas drop
 products_df = products_df[products_df["name"] != "Linen"]
-# MongoDB equivalent: db.products.deleteOne({ name: "Linen" })
+# Supabase equivalent: db.products.deleteOne({ name: "Linen" })
 
-# MongoDB aggregate() ≈ Pandas groupby
+# Supabase aggregate() ≈ Pandas groupby
 products_df.groupby("category")["price"].mean()
-# MongoDB equivalent: db.products.aggregate([{ $group: { _id: "$category", avgPrice: { $avg: "$price" } } }])
+# Supabase equivalent: db.products.aggregate([{ $group: { _id: "$category", avgPrice: { $avg: "$price" } } }])
 ```
 
 ---
 
-## 10. MongoDB — Document Database in Plain Language
+## 10. Supabase — row Database in Plain Language
 
 ### Core Concepts
 
-| MongoDB Term | SQL Equivalent | Python Equivalent | Explanation |
+| Supabase Term | SQL Equivalent | Python Equivalent | Explanation |
 |---|---|---|---|
 | **Database** | Database | Folder | Container for all your data |
-| **Collection** | Table | DataFrame | A group of similar documents (e.g., "products") |
-| **Document** | Row | Dictionary | A single record (e.g., one product) |
+| **table** | Table | DataFrame | A group of similar rows (e.g., "products") |
+| **row** | Row | Dictionary | A single record (e.g., one product) |
 | **Field** | Column | Dictionary key | A single attribute (e.g., "name", "price") |
 | **_id** | Primary Key | Index | Unique identifier (auto-generated) |
 
@@ -1030,9 +1030,9 @@ products_df.groupby("category")["price"].mean()
 
 CRUD stands for **Create, Read, Update, Delete**. Every database operation is one of these four:
 
-#### 1. CREATE (Insert a new document)
+#### 1. CREATE (Insert a new row)
 ```javascript
-// MongoDB Shell command
+// Supabase Shell command
 db.products.insertOne({
   name: "Pure Banarasi Zari Brocade Saree",
   sku: "TXT-001",
@@ -1053,7 +1053,7 @@ INSERT INTO products (name, sku, category, fabric_type, unit_price, stock)
 VALUES ('Pure Banarasi Zari Brocade Saree', 'TXT-001', 'Saree', 'Silk', 8500, 45);
 ```
 
-#### 2. READ (Find/fetch documents)
+#### 2. READ (Find/fetch rows)
 ```javascript
 // Find all sarees
 db.products.find({ category: "Saree" });
@@ -1071,11 +1071,11 @@ products_df[products_df["unitPrice"] > 5000].sort_values("unitPrice", ascending=
 products_df[products_df["sku"] == "TXT-001"].iloc[0]
 ```
 
-#### 3. UPDATE (Modify existing documents)
+#### 3. UPDATE (Modify existing rows)
 ```javascript
 // Update one product's stock
 db.products.updateOne(
-  { sku: "TXT-001" },              // Filter: which document to update
+  { sku: "TXT-001" },              // Filter: which row to update
   { $set: { stockQuantity: 40 } }  // Update: what to change
 );
 
@@ -1091,7 +1091,7 @@ products_df.loc[products_df["sku"] == "TXT-001", "stockQuantity"] = 40
 products_df.loc[products_df["fabricType"] == "Silk", "unitPrice"] *= 1.10
 ```
 
-#### 4. DELETE (Remove documents)
+#### 4. DELETE (Remove rows)
 ```javascript
 // Delete one product
 db.products.deleteOne({ sku: "TXT-001" });
@@ -1105,7 +1105,7 @@ products_df = products_df[products_df["sku"] != "TXT-001"]
 products_df = products_df[products_df["status"] != "Out of Stock"]
 ```
 
-### MongoDB Query Operators (Cheat Sheet)
+### Supabase Query Operators (Cheat Sheet)
 
 | Operator | Meaning | Example |
 |---|---|---|
@@ -1121,69 +1121,69 @@ products_df = products_df[products_df["status"] != "Out of Stock"]
 
 ---
 
-## 11. MongoDB Atlas — Your Cloud Database
+## 11. Supabase Postgres — Your Cloud Database
 
-### What is MongoDB Atlas?
+### What is Supabase Postgres?
 
-**MongoDB Atlas** is MongoDB running on someone else's computer (a cloud server). Instead of installing MongoDB on your laptop, you use MongoDB's free cloud service.
+**Supabase Postgres** is Supabase running on someone else's computer (a cloud server). Instead of installing Supabase on your laptop, you use Supabase's free cloud service.
 
 **Analogy:** 
-- **Local MongoDB** = Storing files on your laptop hard drive
-- **MongoDB Atlas** = Storing files on Google Drive (accessible from anywhere)
+- **Local Supabase** = Storing files on your laptop hard drive
+- **Supabase Postgres** = Storing files on Google Drive (accessible from anywhere)
 
-### Why Use Atlas Instead of Local MongoDB?
+### Why Use Atlas Instead of Local Supabase?
 
-| Local MongoDB | MongoDB Atlas (Cloud) |
+| Local Supabase | Supabase Postgres (Cloud) |
 |---|---|
 | Only works on your laptop | Works from anywhere (laptop, phone, Vercel server) |
 | Data lost if laptop crashes | Data backed up automatically |
-| You manage security | MongoDB handles security |
+| You manage security | Supabase handles security |
 | Need to install & configure | Ready in 2 minutes (free tier) |
 | Can't deploy to Vercel | ✅ Vercel connects to Atlas perfectly |
 
 ### How Your Project Connects to Atlas
 
 ```
-Your Website (Vercel)  ─── MONGODB_URI ───→  MongoDB Atlas (Cloud)
+Your Website (Vercel)  ─── Supabase_URI ───→  Supabase Postgres (Cloud)
                                               ├── Database: "ksarts"
-                                              │   ├── Collection: "products"
+                                              │   ├── table: "products"
                                               │   │   ├── {name: "Banarasi Silk", ...}
                                               │   │   ├── {name: "Chanderi Cotton", ...}
                                               │   │   └── ...
-                                              │   ├── Collection: "customers"
+                                              │   ├── table: "customers"
                                               │   │   ├── {name: "Rajesh Sharma", ...}
                                               │   │   └── ...
-                                              │   └── Collection: "sales"
+                                              │   └── table: "sales"
                                               │       ├── {invoiceNumber: "INV-2026-0789", ...}
                                               │       └── ...
 ```
 
-The **connection string** (`MONGODB_URI`) is like a password-protected URL:
+The **connection string** (`Supabase_URI`) is like a password-protected URL:
 ```
-mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/ksarts
+Supabase+srv://username:password@cluster0.xxxxx.Supabase.net/ksarts
 ```
 
 This string tells your code:
-- **Protocol:** `mongodb+srv://` (use MongoDB's secure connection)
+- **Protocol:** `Supabase+srv://` (use Supabase's secure connection)
 - **Username/Password:** `username:password` (authentication)
-- **Server:** `cluster0.xxxxx.mongodb.net` (which cloud server)
+- **Server:** `cluster0.xxxxx.Supabase.net` (which cloud server)
 - **Database:** `/ksarts` (which database to use)
 
 ---
 
-## 12. Mongoose — The MongoDB Helper Library
+## 12. Supabase Client — The Supabase Helper Library
 
-### Why Can't We Just Use MongoDB Directly?
+### Why Can't We Just Use Supabase Directly?
 
-You *can* use MongoDB directly, but it's like using raw SQL queries for everything. Mongoose adds:
+You *can* use Supabase directly, but it's like using raw SQL queries for everything. Supabase Client adds:
 
 1. **Schema validation** — Ensures data follows a structure (like DataFrame dtypes)
-2. **Type safety** — TypeScript knows what fields each document has
+2. **Type safety** — TypeScript knows what fields each row has
 3. **Convenience methods** — Easier syntax for common operations
 
-### What is a Mongoose Schema?
+### What is a Supabase Client Schema?
 
-A Schema defines the **expected structure** of documents in a collection. Think of it as defining the column types for a Pandas DataFrame:
+A Schema defines the **expected structure** of rows in a table. Think of it as defining the column types for a Pandas DataFrame:
 
 ```python
 # PANDAS — defining column types (what you know)
@@ -1199,10 +1199,10 @@ dtypes = {
 ```
 
 ```typescript
-// MONGOOSE — same concept, TypeScript syntax
-// File: lib/models/Product.ts
+// Supabase Client — same concept, TypeScript syntax
+// File: supabase/schema.sqlProduct.ts
 
-import mongoose, { Schema } from "mongoose";
+import Supabase Client, { Schema } from "Supabase Client";
 
 const ProductSchema = new Schema({
   sku:           { type: String, required: true, unique: true },
@@ -1222,7 +1222,7 @@ const ProductSchema = new Schema({
 }, { timestamps: true });
 
 // Create the Model (like creating a DataFrame class)
-const ProductModel = mongoose.models.Product || mongoose.model("Product", ProductSchema);
+const ProductModel = Supabase Client.models.Product || Supabase Client.model("Product", ProductSchema);
 export default ProductModel;
 ```
 
@@ -1239,13 +1239,13 @@ export default ProductModel;
 // lib/actions/product-actions.ts
 "use server";
 
-import { connectToDatabase } from "@/lib/db/mongodb";
-import ProductModel from "@/lib/models/Product";
+import { connectToDatabase } from "@/lib/db/Supabase";
+import ProductModel from "@/supabase/schema.sqlProduct";
 
 // CREATE — Add a new product
 export async function createProductAction(productData) {
-  await connectToDatabase();                        // Step 1: Connect to MongoDB Atlas
-  await ProductModel.create({                       // Step 2: Insert a new document
+  await connectToDatabase();                        // Step 1: Connect to Supabase Postgres
+  await ProductModel.create({                       // Step 2: Insert a new row
     sku: productData.sku,
     name: productData.name,
     unitPrice: productData.unitPrice,
@@ -1256,7 +1256,7 @@ export async function createProductAction(productData) {
 // READ — Get all products
 export async function getProductsAction() {
   await connectToDatabase();
-  const products = await ProductModel.find({})      // Find all documents
+  const products = await ProductModel.find({})      // Find all rows
     .sort({ createdAt: -1 })                        // Sort by newest first
     .lean();                                        // Return plain objects (faster)
   return products;
@@ -1274,12 +1274,12 @@ products_df = pd.read_csv("products.csv")
 products_df = products_df.sort_values("createdAt", ascending=False)
 ```
 
-### The Connection Singleton (lib/db/mongodb.ts)
+### The Connection Singleton (lib/db/Supabase.ts)
 
-Your project uses a **connection singleton** — a pattern that ensures only ONE connection to MongoDB exists, even if multiple pages request data simultaneously:
+Your project uses a **connection singleton** — a pattern that ensures only ONE connection to Supabase exists, even if multiple pages request data simultaneously:
 
 ```typescript
-// Simplified explanation of lib/db/mongodb.ts
+// Simplified explanation of lib/db/Supabase.ts
 
 // Step 1: Check if we already have a connection
 if (existingConnection) {
@@ -1287,14 +1287,14 @@ if (existingConnection) {
 }
 
 // Step 2: If no connection exists, create one
-const newConnection = await mongoose.connect(MONGODB_URI);
+const newConnection = await Supabase Client.connect(Supabase_URI);
 
 // Step 3: Save it globally so other requests can reuse it
-global.mongooseCache = newConnection;
+global.Supabase ClientCache = newConnection;
 return newConnection;
 ```
 
-**Why is this important?** Without this pattern, every page visit would create a new database connection. MongoDB Atlas has a connection limit (100 on the free tier). This singleton ensures you never exceed that limit.
+**Why is this important?** Without this pattern, every page visit would create a new database connection. Supabase Postgres has a connection limit (100 on the free tier). This singleton ensures you never exceed that limit.
 
 ---
 
@@ -1458,7 +1458,7 @@ flask_service/
 ├── models/                ← Saved ML model files
 │   ├── sales_model.joblib
 │   └── customer_segments.joblib
-└── VIVA_STUDENT_GUIDE.md  ← Viva preparation document
+└── VIVA_STUDENT_GUIDE.md  ← Viva preparation row
 ```
 
 ### Understanding app.py — Line by Line
@@ -1616,7 +1616,7 @@ import os
 # ─── 1. SALES PREDICTION MODEL ───────────────────────────────
 print("Training Sales Prediction Model (Random Forest)...")
 
-# Generate training data (in real project, this comes from MongoDB)
+# Generate training data (in real project, this comes from Supabase)
 np.random.seed(42)
 months = np.tile(np.arange(1, 13), 3)          # 3 years × 12 months
 years = np.repeat([2024, 2025, 2026], 12)
@@ -1726,7 +1726,7 @@ Server Actions are functions that run on the **server** (Vercel's computer), not
 "use server";  // ← This ONE line makes it a server function
 
 export async function getProductsAction() {
-  await connectToDatabase();                    // Connect to MongoDB Atlas
+  await connectToDatabase();                    // Connect to Supabase Postgres
   const products = await ProductModel.find({}); // Fetch all products
   return { success: true, data: products };     // Return to the page
 }
@@ -1757,7 +1757,7 @@ export default async function ProductsPage() {
 | Database CRUD (Create, Read, Update, Delete) | Machine Learning predictions |
 | Form submissions (add product, add customer) | Python-specific libraries (Scikit-Learn, Pandas) |
 | Simple business logic (calculate GST) | Complex numerical computations |
-| Anything that needs MongoDB | Anything that needs Python ML ecosystem |
+| Anything that needs Supabase | Anything that needs Python ML ecosystem |
 
 ---
 
@@ -1897,11 +1897,11 @@ Environment variables are **secret settings** stored outside your code. They con
 ```bash
 # .env file (NEVER committed to Git, NEVER shared publicly)
 
-# MongoDB Atlas connection string
-MONGODB_URI=mongodb+srv://khushi:password123@cluster0.xxxxx.mongodb.net/ksarts
+# Supabase Postgres connection string
+Supabase_URI=Supabase+srv://khushi:password123@cluster0.xxxxx.Supabase.net/ksarts
 
-# Cloudinary image upload credentials
-CLOUDINARY_URL=cloudinary://api_key:api_secret@cloud_name
+# Supabase Storage image upload credentials
+Supabase Storage_URL=Supabase Storage://api_key:api_secret@cloud_name
 
 # Flask ML service URL (optional)
 FLASK_AI_SERVICE_URL=http://127.0.0.1:5000/api/v1/predict
@@ -1911,14 +1911,14 @@ FLASK_AI_SERVICE_URL=http://127.0.0.1:5000/api/v1/predict
 
 ```typescript
 // In TypeScript
-const mongoUri = process.env.MONGODB_URI;
+const mongoUri = process.env.Supabase_URI;
 // process.env reads the environment variable from .env file
 ```
 
 ```python
 # In Python
 import os
-mongo_uri = os.environ.get("MONGODB_URI")
+mongo_uri = os.environ.get("Supabase_URI")
 # os.environ reads the environment variable
 ```
 
@@ -2022,7 +2022,7 @@ git pull origin main
 │                                                    │           │         │
 │                                                    ▼           ▼         │
 │                                          ┌──────────┐ ┌────────────────┐│
-│                                          │ MongoDB  │ │ Flask ML       ││
+│                                          │ Supabase  │ │ Flask ML       ││
 │                                          │ Atlas    │ │ Service        ││
 │                                          │ (Cloud)  │ │ (Python)       ││
 │                                          │          │ │                ││
@@ -2042,10 +2042,10 @@ git pull origin main
 **Q1: What is the architecture of your project?**
 > "My project follows a **Decoupled Architecture** with three layers:
 > 1. **Presentation Layer** — Next.js 16 React dashboard with Tailwind CSS (strict Light Theme)
-> 2. **Data Layer** — MongoDB Atlas cloud database connected via Mongoose ORM
+> 2. **Data Layer** — Supabase Postgres cloud database connected via Supabase Client
 > 3. **Intelligence Layer** — Python Flask microservice running Scikit-Learn ML models
 > 
-> The frontend communicates with MongoDB through Next.js Server Actions for CRUD operations, and with the ML service through a server-side HTTP bridge called `ai-service.ts`."
+> The frontend communicates with Supabase through Next.js Server Actions for CRUD operations, and with the ML service through a server-side HTTP bridge called `ai-service.ts`."
 
 **Q2: Why did you choose a decoupled architecture instead of monolithic?**
 > "Python has the richest ecosystem for Machine Learning — Scikit-Learn, Pandas, NumPy, and Joblib. JavaScript (Next.js) has the best ecosystem for building modern web interfaces. By decoupling them into separate services, each technology handles what it does best. This follows the **Separation of Concerns** principle. Additionally, the ML models can be retrained or upgraded independently without modifying the frontend codebase."
@@ -2056,13 +2056,13 @@ git pull origin main
 **Q4: Why Next.js over plain React?**
 > "Next.js provides three critical features over plain React:
 > 1. **Server-side rendering** — Pages load faster because HTML is generated on the server
-> 2. **Server Actions** — We can securely access MongoDB without building a separate REST API
+> 2. **Server Actions** — We can securely access Supabase without building a separate REST API
 > 3. **File-based routing** — Creating a folder automatically creates a URL, reducing configuration
 > 
 > These features reduce development time and improve performance."
 
-**Q5: Why MongoDB instead of MySQL/PostgreSQL?**
-> "Textile products are heterogeneous — a Saree has drape length, a Suiting fabric has thread count, a Lehenga has embroidery type. MongoDB's flexible document schema handles this variety naturally. In SQL, we'd need separate tables or NULL-filled columns. MongoDB also scales horizontally and integrates perfectly with our Vercel deployment via MongoDB Atlas cloud."
+**Q5: Why Supabase instead of MySQL/PostgreSQL?**
+> "Textile products are heterogeneous — a Saree has drape length, a Suiting fabric has thread count, a Lehenga has embroidery type. Supabase's flexible row schema handles this variety naturally. In SQL, we'd need separate tables or NULL-filled columns. Supabase also scales horizontally and integrates perfectly with our Vercel deployment via Supabase Postgres cloud."
 
 ### Machine Learning Questions
 
@@ -2112,21 +2112,21 @@ git pull origin main
 ### Database Questions
 
 **Q11: Explain your database schema design.**
-> "We have three main collections in MongoDB Atlas:
+> "We have three main tables in Supabase Postgres:
 > 1. **Products** — SKU, name, category, fabric type, prices, stock quantity, reorder level, status
 > 2. **Customers** — Name, business name, city, RFM segment, credit limit, outstanding balance
 > 3. **Sales** — Invoice number, customer reference, line items (products + quantities), totals, payment status, salesperson
 > 
-> Each document includes automatic timestamps (`createdAt`, `updatedAt`) managed by Mongoose."
+> Each row includes automatic timestamps (`createdAt`, `updatedAt`) managed by Supabase Client."
 
-**Q12: What is Mongoose and why do you use it?**
-> "Mongoose is an Object Document Mapper (ODM) for MongoDB in Node.js. It provides:
+**Q12: What is Supabase Client and why do you use it?**
+> "Supabase Client is an Object row Mapper (ODM) for Supabase in Node.js. It provides:
 > 1. **Schema validation** — Ensures every product has a required name and price
 > 2. **Type casting** — Automatically converts data to correct types
 > 3. **Middleware** — Can run functions before/after save operations
 > 4. **Query helpers** — Clean syntax like `Product.find({}).sort({createdAt: -1})`
 > 
-> Without Mongoose, we'd write raw MongoDB queries and manually validate every field."
+> Without Supabase Client, we'd write raw Supabase queries and manually validate every field."
 
 ### Frontend Questions
 
@@ -2167,7 +2167,7 @@ git pull origin main
 ### Deployment & DevOps Questions
 
 **Q19: How did you deploy this project?**
-> "The Next.js frontend is deployed on **Vercel** — I pushed the code to GitHub, connected the repository to Vercel, added environment variables (MONGODB_URI), and Vercel automatically builds and deploys on every Git push.
+> "The Next.js frontend is deployed on **Vercel** — I pushed the code to GitHub, connected the repository to Vercel, added environment variables (Supabase_URI), and Vercel automatically builds and deploys on every Git push.
 > 
 > The Flask ML service can be deployed separately on **Render** or **PythonAnywhere** (free tier), or run locally during viva demonstrations."
 
@@ -2179,9 +2179,9 @@ git pull origin main
 **Q21: What is the Separation of Concerns principle?**
 > "Separation of Concerns means each module or layer of the system handles one specific responsibility. In our project:
 > - React components handle **display** (what the user sees)
-> - Server Actions handle **data operations** (CRUD with MongoDB)
+> - Server Actions handle **data operations** (CRUD with Supabase)
 > - Flask handles **ML inference** (predictions and clustering)
-> - MongoDB handles **data persistence** (permanent storage)
+> - Supabase handles **data persistence** (permanent storage)
 > 
 > This makes the system easier to maintain, test, and scale."
 
@@ -2192,16 +2192,16 @@ git pull origin main
 > 3. Lower client-side processing (the user's phone/laptop does less work)"
 
 **Q23: How do you ensure data consistency?**
-> "We use Mongoose schema validation to enforce data integrity at the application level — required fields, enum constraints, and default values prevent invalid data from entering MongoDB. Additionally, MongoDB Atlas provides automatic backups and replica sets for data durability."
+> "We use Supabase Client schema validation to enforce data integrity at the application level — required fields, enum constraints, and default values prevent invalid data from entering Supabase. Additionally, Supabase Postgres provides automatic backups and replica sets for data durability."
 
 **Q24: What would you improve if given more time?**
 > "Three improvements:
-> 1. **Authentication** — Add Clerk authentication for secure multi-user access with Admin and Employee roles
+> 1. **Authentication** — Add Supabase Auth authentication for secure multi-user access with Admin and Employee roles
 > 2. **Real-time training** — Allow the ML models to retrain automatically as new sales data is entered, rather than using static training data
 > 3. **Report export** — Add PDF export functionality for financial reports so business owners can share them with accountants"
 
 **Q25: What did you learn from this project?**
-> "This project taught me how Data Science integrates into real-world business applications. In academic settings, we train models in Jupyter notebooks and evaluate metrics in isolation. This project showed me the complete pipeline — from raw data in MongoDB, through ML inference in Flask, to interactive visualization in a production web dashboard that a non-technical business owner can use daily."
+> "This project taught me how Data Science integrates into real-world business applications. In academic settings, we train models in Jupyter notebooks and evaluate metrics in isolation. This project showed me the complete pipeline — from raw data in Supabase, through ML inference in Flask, to interactive visualization in a production web dashboard that a non-technical business owner can use daily."
 
 ---
 
@@ -2239,7 +2239,7 @@ git pull origin main
 4. **Customers Page (1 min)** — Show customer segments (VIP, Regular, At-Risk)
 5. **Sales Page (1 min)** — Show invoice log, payment status badges
 6. **AI Predictions Hub (3 min)** — This is your star feature! Show all 4 ML modules
-7. **Settings → Seed Database (1 min)** — Demonstrate 1-click MongoDB initialization
+7. **Settings → Seed Database (1 min)** — Demonstrate 1-click Supabase initialization
 8. **Show Flask Running (2 min)** — Open terminal, run `python app.py`, show live predictions
 9. **Architecture Explanation (2 min)** — Draw on whiteboard or show prepared diagram
 
@@ -2258,7 +2258,7 @@ git pull origin main
 | 7-8 | ML Algorithm 1: Random Forest (with formula, diagram) |
 | 9-10 | ML Algorithm 2: K-Means (with centroid illustration) |
 | 11 | ML Algorithm 3: Apriori (with support/confidence example) |
-| 12 | Database Design (MongoDB collections diagram) |
+| 12 | Database Design (Supabase tables diagram) |
 | 13-15 | Screenshots of each page (Dashboard, Products, AI Hub) |
 | 16 | Testing & Results (RMSE, R², Silhouette scores) |
 | 17 | Conclusion & Future Scope |
@@ -2282,9 +2282,9 @@ git pull origin main
 | Week | Focus Area | What to Study | Time/Day |
 |---|---|---|---|
 | Week 5 | Next.js & Routing | Read Section 8. Trace through your project's folder structure. Understand page.tsx files | 1.5 hours |
-| Week 6 | MongoDB & Mongoose | Read Sections 9-12. Practice MongoDB queries. Understand your Mongoose schemas | 2 hours |
+| Week 6 | Supabase & Supabase Client | Read Sections 9-12. Practice Supabase queries. Understand your SQL schemas | 2 hours |
 | Week 7 | Flask & APIs | Read Sections 13-16. Run `python app.py` yourself. Test endpoints in browser | 2 hours |
-| Week 8 | Full Pipeline | Trace data flow from browser → Next.js → MongoDB → Flask → chart. Understand ai-service.ts | 1.5 hours |
+| Week 8 | Full Pipeline | Trace data flow from browser → Next.js → Supabase → Flask → chart. Understand ai-service.ts | 1.5 hours |
 
 ### Month 3 — Viva Preparation
 
@@ -2312,9 +2312,9 @@ git pull origin main
 - 📺 [Next.js in 100 Seconds — Fireship (YouTube)](https://www.youtube.com/watch?v=Sklc_fQBmcs) — Quick overview
 - 📝 [Next.js Learn Course](https://nextjs.org/learn) — Official interactive tutorial
 
-### MongoDB
-- 📺 [MongoDB in 30 Minutes — Web Dev Simplified (YouTube)](https://www.youtube.com/watch?v=ofme2o29ngU)
-- 📝 [MongoDB University (Free)](https://learn.mongodb.com/) — Official free courses with certificates
+### Supabase
+- 📺 [Supabase in 30 Minutes — Web Dev Simplified (YouTube)](https://www.youtube.com/watch?v=ofme2o29ngU)
+- 📝 [Supabase University (Free)](https://learn.Supabase.com/) — Official free courses with certificates
 
 ### Flask
 - 📺 [Flask in 1 Hour — Tech With Tim (YouTube)](https://www.youtube.com/watch?v=Z1RJmh_OqeA)
@@ -2322,7 +2322,7 @@ git pull origin main
 
 ### Tailwind CSS
 - 📺 [Tailwind CSS in 15 Minutes — Fireship (YouTube)](https://www.youtube.com/watch?v=mr15Xzb1Ook)
-- 📝 [Tailwind CSS Documentation](https://tailwindcss.com/docs) — Searchable reference
+- 📝 [Tailwind CSS rowation](https://tailwindcss.com/docs) — Searchable reference
 
 ### Machine Learning (Revision)
 - 📺 [Random Forest Explained — StatQuest (YouTube)](https://www.youtube.com/watch?v=J4Wdy0Wc_xQ) — Best ML explainer on YouTube
