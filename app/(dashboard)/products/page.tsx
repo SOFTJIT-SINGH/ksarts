@@ -67,8 +67,20 @@ export default async function ProductsPage() {
                 {products.map((product) => (
                   <tr key={product.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-4 py-3.5">
-                      <div className="font-bold text-slate-900">{product.name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{product.sku}</div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 shrink-0 rounded-md bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center">
+                          {product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-[10px] font-semibold text-slate-400">NO IMG</span>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900">{product.name}</div>
+                          <div className="text-[11px] text-slate-400 font-mono">{product.sku}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <Badge variant="secondary" className="text-[10px]">

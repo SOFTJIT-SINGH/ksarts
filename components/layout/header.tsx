@@ -1,22 +1,35 @@
 "use client";
 
-import { Search, Bell, Menu, ShieldCheck, UserCheck, X } from "lucide-react";
+import { Search, Bell, Menu, ShieldCheck, UserCheck, X, LogOut } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import type { AuthUser } from "@/lib/actions/auth-actions";
 
 interface HeaderProps {
   userRole: UserRole;
+  authUser: AuthUser;
   onToggleRole: () => void;
   onToggleMobileMenu: () => void;
+  onLogout: () => void;
   isMobileOpen: boolean;
 }
 
 export function Header({
   userRole,
+  authUser,
   onToggleRole,
   onToggleMobileMenu,
+  onLogout,
   isMobileOpen,
 }: HeaderProps) {
+  // Derive initials from authenticated user's full name
+  const initials = authUser.fullName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm md:px-6">
       {/* Mobile Menu Toggle + Global Search */}
@@ -43,7 +56,7 @@ export function Header({
 
       {/* Header Actions */}
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Role Toggle Switcher (Interactive Demo Helper) */}
+        {/* Role Toggle Switcher (Demo Role Switcher) */}
         <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-1 border border-slate-200">
           <button
             onClick={onToggleRole}
@@ -82,20 +95,31 @@ export function Header({
 
         <div className="h-6 w-px bg-slate-200" />
 
-        {/* User Profile Avatar */}
+        {/* User Profile Avatar — now dynamic from authUser */}
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs shadow-xs">
-            {userRole === "admin" ? "KS" : "PS"}
+            {initials}
           </div>
           <div className="hidden flex-col md:flex">
             <span className="text-xs font-semibold text-slate-900 leading-none">
-              {userRole === "admin" ? "Khushi Soni" : "Priya Sharma"}
+              {authUser.fullName}
             </span>
             <span className="text-[11px] text-slate-500 mt-0.5 capitalize">
-              {userRole === "admin" ? "Business Owner" : "Sales Executive"}
+              {authUser.role === "admin" ? "Business Owner" : "Sales Executive"}
             </span>
           </div>
         </div>
+
+        {/* Logout Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onLogout}
+          className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+          aria-label="Sign out"
+        >
+          <LogOut className="h-4 w-4" />
+        </Button>
       </div>
     </header>
   );

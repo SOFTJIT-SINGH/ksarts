@@ -18,8 +18,22 @@ import {
   MOCK_AI_OVERVIEW,
 } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
+import { aiService } from "@/lib/services/ai-service";
 
-export default function AIInsightsPage() {
+export default async function AIInsightsPage() {
+  let salesData = { overview: MOCK_AI_OVERVIEW, forecast: MOCK_SALES_FORECAST };
+  let isLive = false;
+
+  try {
+    const aiSales = await aiService.getSalesPrediction();
+    if (aiSales) {
+      salesData = aiSales;
+      isLive = true;
+    }
+  } catch (error) {
+    console.error("Failed to connect to AI service", error);
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -30,7 +44,9 @@ export default function AIInsightsPage() {
               <Sparkles className="h-3 w-3 mr-1 text-purple-600" />
               Machine Learning DSS Core
             </Badge>
-            <span className="text-xs text-slate-500 font-medium">Flask Service v1.0 connected (Mock)</span>
+            <span className="text-xs text-slate-500 font-medium">
+              Flask Service v1.0 connected ({isLive ? "Live Data" : "Mock Fallback"})
+            </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl mt-1">
             AI Predictions & Intelligence Hub
@@ -75,7 +91,7 @@ export default function AIInsightsPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-semibold uppercase">Next Month</span>
-                <span className="text-sm font-bold text-indigo-600">{formatINR(MOCK_AI_OVERVIEW.predictedNextMonthSalesINR)}</span>
+                <span className="text-sm font-bold text-indigo-600">{formatINR(salesData.overview.predictedNextMonthSalesINR)}</span>
               </div>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
@@ -181,7 +197,7 @@ export default function AIInsightsPage() {
       </div>
 
       {/* Main Forecast Visualizer */}
-      <SalesChart data={MOCK_SALES_FORECAST} />
+      <SalesChart data={salesData.forecast} />
     </div>
   );
 }

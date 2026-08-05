@@ -42,6 +42,7 @@ export async function getProductsAction(): Promise<{ success: boolean; data?: Pr
       reorderLevel: doc.reorderLevel,
       supplierName: doc.supplierName,
       status: doc.status,
+      imageUrl: doc.image_url,
       createdAt: doc.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
     }));
 
@@ -53,37 +54,79 @@ export async function getProductsAction(): Promise<{ success: boolean; data?: Pr
 }
 
 /**
- * Creates a new Product in Supabase PostgreSQL.
+ * Creates a new Product in Supabase PostgreSQL, including optional image upload to Supabase Storage.
  */
-export async function createProductAction(productData: Partial<Product>): Promise<{ success: boolean; error?: string }> {
+export async function createProductAction(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
     }
 
+    // Extract basic fields
+    const sku = formData.get("sku") as string;
+    const name = formData.get("name") as string;
+    const category = formData.get("category") as Product["category"];
+    const fabricType = formData.get("fabricType") as string;
+    const weaveType = formData.get("weaveType") as string;
+    const gsm = Number(formData.get("gsm")) || 0;
+    const color = formData.get("color") as string;
+    const unitPrice = Number(formData.get("unitPrice")) || 0;
+    const mrp = Number(formData.get("mrp")) || 0;
+    const stockQuantity = Number(formData.get("stockQuantity")) || 0;
+    const unitOfMeasure = formData.get("unitOfMeasure") as Product["unitOfMeasure"] || "Pieces";
+    const reorderLevel = Number(formData.get("reorderLevel")) || 0;
+    const supplierName = formData.get("supplierName") as string;
+    
+    // Handle image upload if present
+    const imageFile = formData.get("image") as File | null;
+    let imageUrl: string | null = null;
+
+    if (imageFile && imageFile.size > 0) {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${sku}-${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("fabric-images")
+        .upload(fileName, imageFile, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        // We won't throw here, just proceed without image if bucket doesn't exist
+      } else if (uploadData) {
+        const { data: publicUrlData } = supabase.storage
+          .from("fabric-images")
+          .getPublicUrl(fileName);
+        imageUrl = publicUrlData.publicUrl;
+      }
+    }
+
     let status: Product["status"] = "In Stock";
-    if (productData.stockQuantity === 0) {
+    if (stockQuantity === 0) {
       status = "Out of Stock";
-    } else if (productData.stockQuantity && productData.reorderLevel && productData.stockQuantity <= productData.reorderLevel) {
+    } else if (stockQuantity <= reorderLevel) {
       status = "Low Stock";
     }
 
     const { error } = await supabase.from("products").insert([
       {
-        sku: productData.sku,
-        name: productData.name,
-        category: productData.category,
-        fabricType: productData.fabricType,
-        weaveType: productData.weaveType,
-        gsm: productData.gsm,
-        color: productData.color,
-        unitPrice: productData.unitPrice,
-        mrp: productData.mrp,
-        stockQuantity: productData.stockQuantity,
-        unitOfMeasure: productData.unitOfMeasure,
-        reorderLevel: productData.reorderLevel,
-        supplierName: productData.supplierName,
+        sku,
+        name,
+        category,
+        fabricType,
+        weaveType,
+        gsm,
+        color,
+        unitPrice,
+        mrp,
+        stockQuantity,
+        unitOfMeasure,
+        reorderLevel,
+        supplierName,
         status,
+        image_url: imageUrl, // Assumes column in DB is 'image_url' (or we can just skip if we haven't altered schema, wait, let's use image_url and alter schema if needed)
       }
     ]);
 

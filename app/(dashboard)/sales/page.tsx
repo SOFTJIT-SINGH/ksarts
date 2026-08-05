@@ -1,11 +1,16 @@
-import { Plus, Search, FileText, Download } from "lucide-react";
+import { Search, FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { MOCK_SALES } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
+import { SaleModal } from "@/components/sales/sale-modal";
+import { getSalesAction } from "@/lib/actions/sale-actions";
 
-export default function SalesPage() {
+export default async function SalesPage() {
+  const res = await getSalesAction();
+  const sales = res.success && res.data && res.data.length > 0 ? res.data : MOCK_SALES;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -19,10 +24,7 @@ export default function SalesPage() {
           </p>
         </div>
 
-        <Button className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="h-4 w-4" />
-          <span>Create Sales Invoice</span>
-        </Button>
+        <SaleModal />
       </div>
 
       {/* Invoices List */}
@@ -43,7 +45,7 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {MOCK_SALES.map((sale) => (
+                {sales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-900">{sale.invoiceNumber}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-800">{sale.customerName}</td>

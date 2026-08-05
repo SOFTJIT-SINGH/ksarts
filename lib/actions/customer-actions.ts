@@ -46,3 +46,74 @@ export async function getCustomersAction(): Promise<{ success: boolean; data?: C
     return { success: false, error: error.message || "Failed to fetch customers" };
   }
 }
+
+/**
+ * Creates a new customer account in Supabase PostgreSQL.
+ */
+export async function createCustomerAction(customerData: Partial<Customer>): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
+    }
+
+    const { error } = await supabase.from("customers").insert([
+      {
+        name: customerData.name,
+        businessName: customerData.businessName,
+        phone: customerData.phone,
+        email: customerData.email,
+        city: customerData.city,
+        segment: customerData.segment || "Regular Retailer",
+        creditLimitINR: customerData.creditLimitINR || 100000,
+        totalPurchasesINR: 0,
+        totalOrdersCount: 0,
+        outstandingBalanceINR: 0,
+      }
+    ]);
+
+    if (error) throw error;
+
+    revalidatePath("/customers");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error creating customer:", error);
+    return { success: false, error: error.message || "Failed to create customer" };
+  }
+}
+
+/**
+ * Updates an existing customer account in Supabase PostgreSQL.
+ */
+export async function updateCustomerAction(id: string, customerData: Partial<Customer>): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
+    }
+
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        name: customerData.name,
+        businessName: customerData.businessName,
+        phone: customerData.phone,
+        email: customerData.email,
+        city: customerData.city,
+        segment: customerData.segment,
+        creditLimitINR: customerData.creditLimitINR,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    revalidatePath("/customers");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating customer:", error);
+    return { success: false, error: error.message || "Failed to update customer" };
+  }
+}

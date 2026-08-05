@@ -4,7 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MOCK_PRODUCTS } from "@/lib/mock-data/textile-data";
 
-export default function InventoryPage() {
+import { getProductsAction } from "@/lib/actions/product-actions";
+
+export default async function InventoryPage() {
+  const res = await getProductsAction();
+  const products = res.success && res.data && res.data.length > 0 ? res.data : MOCK_PRODUCTS;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -18,7 +23,7 @@ export default function InventoryPage() {
           </p>
         </div>
 
-        <Button className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700">
+        <Button className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
           <RefreshCw className="h-4 w-4" />
           <span>Trigger Reorder Order</span>
         </Button>
@@ -41,11 +46,23 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {MOCK_PRODUCTS.map((product) => (
+                {products.map((product) => (
                   <tr key={product.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-4 py-3.5">
-                      <div className="font-bold text-slate-900">{product.name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{product.sku}</div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 shrink-0 rounded bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center">
+                          {product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-[9px] font-semibold text-slate-400">IMG</span>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900">{product.name}</div>
+                          <div className="text-[11px] text-slate-400 font-mono">{product.sku}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 font-semibold text-slate-700">{product.category}</td>
                     <td className="px-4 py-3.5 text-center font-bold text-slate-900">

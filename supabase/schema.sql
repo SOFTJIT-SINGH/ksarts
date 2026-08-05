@@ -18,6 +18,7 @@ CREATE TABLE products (
   unitOfMeasure TEXT NOT NULL DEFAULT 'Pieces',
   reorderLevel INTEGER NOT NULL DEFAULT 10,
   supplierName TEXT NOT NULL,
+  image_url TEXT,
   status TEXT NOT NULL DEFAULT 'In Stock',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

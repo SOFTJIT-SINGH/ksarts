@@ -1,11 +1,16 @@
-import { Plus, Search, Users, ShieldAlert, CreditCard } from "lucide-react";
+import { Search, Users, ShieldAlert, CreditCard, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { MOCK_CUSTOMERS } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
+import { CustomerModal } from "@/components/customers/customer-modal";
+import { getCustomersAction } from "@/lib/actions/customer-actions";
 
-export default function CustomersPage() {
+export default async function CustomersPage() {
+  const res = await getCustomersAction();
+  const customers = res.success && res.data && res.data.length > 0 ? res.data : MOCK_CUSTOMERS;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -19,10 +24,7 @@ export default function CustomersPage() {
           </p>
         </div>
 
-        <Button className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="h-4 w-4" />
-          <span>Register New Customer</span>
-        </Button>
+        <CustomerModal />
       </div>
 
       {/* Customers Data Table */}
@@ -39,10 +41,11 @@ export default function CustomersPage() {
                   <th className="px-4 py-3 text-right">Lifetime Sales</th>
                   <th className="px-4 py-3 text-right">Credit Limit</th>
                   <th className="px-4 py-3 text-right">Outstanding Balance</th>
+                  <th className="px-4 py-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {MOCK_CUSTOMERS.map((customer) => (
+                {customers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-4 py-3.5">
                       <div className="font-bold text-slate-900">{customer.name}</div>
@@ -56,6 +59,8 @@ export default function CustomersPage() {
                             ? "purple"
                             : customer.segment === "Regular Retailer"
                             ? "default"
+                            : customer.segment === "At-Risk"
+                            ? "destructive"
                             : "secondary"
                         }
                         className="text-[11px]"
@@ -74,6 +79,16 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-4 py-3.5 text-right font-bold text-amber-700">
                       {formatINR(customer.outstandingBalanceINR)}
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <CustomerModal 
+                        customer={customer} 
+                        trigger={
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600">
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
                     </td>
                   </tr>
                 ))}

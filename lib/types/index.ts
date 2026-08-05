@@ -23,6 +23,7 @@ export interface Product {
   unitOfMeasure: "Meters" | "Pieces" | "Rolls";
   reorderLevel: number;
   supplierName: string;
+  imageUrl?: string | null;
   status: "In Stock" | "Low Stock" | "Out of Stock" | "Overstocked";
   createdAt: string;
 }
