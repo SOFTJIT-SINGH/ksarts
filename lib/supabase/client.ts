@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 // Check for environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
@@ -8,5 +8,6 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_A
   console.warn("⚠️ Supabase environment variables are missing! Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your .env file.");
 }
 
-// Create a single supabase client for interacting with your database
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create a single supabase client for interacting with your database in the browser
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+

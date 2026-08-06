@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 import { UserRole } from "@/lib/types";
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -78,6 +78,7 @@ export async function loginAction(
 
   // Live Supabase authentication
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -119,6 +120,7 @@ export async function signupAction(
 
   // Live Supabase signup
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -151,6 +153,7 @@ export async function logoutAction(): Promise<{ success: boolean; error?: string
   }
 
   try {
+    const supabase = await createClient();
     const { error } = await supabase.auth.signOut();
     if (error) {
       return { success: false, error: error.message };
@@ -168,6 +171,7 @@ export async function getCurrentUserAction(): Promise<AuthResult> {
   }
 
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase.auth.getUser();
 
     if (error || !data.user) {

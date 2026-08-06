@@ -47,8 +47,6 @@ export default function LoginPage() {
     const result = await loginAction(email, password);
 
     if (result.success && result.user) {
-      // Store user in sessionStorage for client-side access
-      sessionStorage.setItem("ks_user", JSON.stringify(result.user));
       router.push("/");
     } else {
       setError(result.error || "Login failed.");
@@ -70,7 +68,6 @@ export default function LoginPage() {
     const result = await signupAction(email, password, fullName, role);
 
     if (result.success && result.user) {
-      sessionStorage.setItem("ks_user", JSON.stringify(result.user));
       router.push("/");
     } else {
       setError(result.error || "Signup failed.");
@@ -85,7 +82,6 @@ export default function LoginPage() {
     const result = await demoLoginAction(demoRole);
 
     if (result.success && result.user) {
-      sessionStorage.setItem("ks_user", JSON.stringify(result.user));
       router.push("/");
     } else {
       setError(result.error || "Demo login failed.");

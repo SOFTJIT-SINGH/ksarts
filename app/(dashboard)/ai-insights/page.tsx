@@ -18,14 +18,14 @@ import {
   MOCK_AI_OVERVIEW,
 } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
-import { aiService } from "@/lib/services/ai-service";
+import { getSalesForecastFromAI } from "@/lib/services/ai-service";
 
 export default async function AIInsightsPage() {
   let salesData = { overview: MOCK_AI_OVERVIEW, forecast: MOCK_SALES_FORECAST };
   let isLive = false;
 
   try {
-    const aiSales = await aiService.getSalesPrediction();
+    const aiSales = await getSalesForecastFromAI();
     if (aiSales) {
       salesData = aiSales;
       isLive = true;

@@ -1,6 +1,6 @@
-# AI-Powered Textile Sales & Inventory Prediction System
+# KS Vision AI
 
-## A Decision Support System for Textile Wholesale and Retail Businesses
+## A Decision Support System for Textile Businesses
 
 ---
 
@@ -14,11 +14,12 @@
 |---|---|
 | **Student Name** | Khushi Soni |
 | **Roll Number** | 2334181 |
+| **Group ID** | 19 |
 | **Department** | Computer Science and Engineering |
 | **College** | AGC Amritsar |
 | **Semester** | 7th Semester (B.Tech, 4th Year) |
-| **Project Guide** | [Guide Name], [Designation] |
-| **Academic Year** | 2026–2027 |
+| **Project Guide** | Er. Ajay Sharma , Associate Professor, Department of CSE |
+| **Academic Year** | 2023–2027 |
 
 ---
 ---
@@ -36,7 +37,7 @@ These traditional tools are adequate for recording historical sales transactions
 - *Which customer accounts represent the highest lifetime value, and which are at risk of attrition?*
 - *Which product combinations are frequently purchased together, enabling strategic bundle offers?*
 
-This project addresses these gaps by designing and implementing a **Decision Support System (DSS)** — a computer-based information system that supports business decision-making activities through data analysis and Machine Learning predictions. The proposed system, named **Ks Arts AI**, combines a modern web-based dashboard interface with a Machine Learning inference microservice to deliver actionable intelligence for textile business operations.
+This project addresses these gaps by designing and implementing a **Decision Support System (DSS)** — a computer-based information system that supports business decision-making activities through data analysis and Machine Learning predictions. The proposed system, named **KS Vision AI**, combines a modern web-based dashboard interface with a Machine Learning inference microservice to deliver actionable intelligence for textile business operations.
 
 ### 1.2 Motivation
 
@@ -116,9 +117,9 @@ The proposed system follows a **Decoupled Three-Tier Architecture** comprising:
                            ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                      DATA LAYER                              │
-│              (Supabase Postgres + Supabase Client)                   │
+│    (Supabase Postgres + Supabase Auth + Supabase Storage)    │
 │                                                              │
-│   Products table │ Customers table │ Sales table│
+│   Products | Customers | Sales | Auth Users | Fabric Images  │
 └──────────────────────────────────────────────────────────────┘
                            │
                            ▼
@@ -133,23 +134,23 @@ The proposed system follows a **Decoupled Three-Tier Architecture** comprising:
 
 **Layer 1 — Presentation Layer (Next.js 16):** Renders the DSS dashboard, handles user interactions (role switching, form submissions, navigation), and displays charts and KPI visualizations using the Recharts library.
 
-**Layer 2 — Data Layer (Supabase Postgres):** Stores all persistent business data — product catalog (SKU, fabric type, pricing, stock levels), customer profiles (RFM metrics, credit limits, segmentation), and sales invoices (line items, GST calculations, payment status). Connected via Supabase Client through Next.js Server Actions.
+**Layer 2 — Data Layer (Supabase Postgres & Services):** Stores all persistent business data — product catalog (SKU, fabric type, pricing, stock levels), customer profiles, and sales invoices. Also manages role-based secure user authentication (Supabase SSR Auth) and cloud storage for product fabric images (Supabase Storage). Connected via Supabase Client through Next.js Server Actions.
 
 **Layer 3 — Intelligence Layer (Flask + Scikit-Learn):** A lightweight Python microservice that loads pre-trained ML model artifacts (`.joblib` files) and exposes REST API endpoints for real-time inference. The frontend communicates with this layer through a server-side HTTP bridge (`ai-service.ts`) that gracefully falls back to mock predictions if the Flask service is offline.
 
-### 4.2 Methodology
+### 4.2 Agile Methodology
 
-The project follows a **UI-First Development Methodology**:
+The project follows an **Agile UI-First Development Methodology**, prioritizing iterative development, continuous feedback, and modular delivery. The development lifecycle is divided into structured **Phases**:
 
-1. **Phase 1 — Design System & UI Shell:** Establish visual design tokens (Light Theme color palette, typography, spacing system) and build the complete dashboard interface with 8 pages using realistic Indian textile domain mock data.
+1. **Phase 1 — Design System & UI Prototyping:** Establish visual design tokens (Light Theme color palette, typography) and build the frontend dashboard interface using realistic Indian textile domain mock data to validate the User Experience (UX) early.
 
-2. **Phase 2 — Database Integration:** Connect the UI to Supabase Postgres cloud database via Supabase Client. Implement Server Actions for Create, Read, Update, Delete (CRUD) operations. Build a 1-Click Database Seeder for instant data initialization.
+2. **Phase 2 — Database & API Integration:** Connect the React UI to the Supabase Postgres cloud database. Implement Server Actions for Create, Read, Update, Delete (CRUD) operations and build a 1-Click Database Seeder for rapid testing.
 
-3. **Phase 3 — Interactive CRUD Modals:** Add form-based dialogs for creating new products, customers, and sales invoices with Zod schema validation.
+3. **Phase 3 — Core Features & Modals:** Develop interactive form-based dialogs with Zod schema validation for managing products, customers, and complex multi-item sales invoices (with automatic GST calculation).
 
-4. **Phase 4 — ML Microservice Development:** Train Scikit-Learn models on textile sales datasets. Build the Flask REST API to serve predictions. Connect the frontend to Flask via a resilient HTTP bridge.
+4. **Phase 4 — ML Microservice & AI Integration:** Train Scikit-Learn Machine Learning models (Random Forest, K-Means) on textile datasets. Build the Flask REST API and securely connect the Next.js frontend to serve real-time predictions.
 
-5. **Phase 5 — Testing, Verification & rowation:** Execute strict TypeScript type-checking (`npx tsc --noEmit`), production build verification (`npm run build`), and generate comprehensive project rowation.
+5. **Phase 5 — Security, Testing & Deployment:** Implement Supabase Server-Side Authentication (SSR) for route protection. Execute strict TypeScript type-checking, verify production builds, deploy the unified application to Vercel, and generate comprehensive project documentation.
 
 ### 4.3 ML Algorithms Used
 
@@ -320,16 +321,14 @@ erDiagram
 
 ```
                         ┌─────────────┐
-                        │  Business   │
-                        │   Owner     │
-                        │  (Khushi)   │
+                        │    Admin    │
                         └──────┬──────┘
                                │
                     Views Dashboard / Enters Data
                                │
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
-│                    Ks Arts AI DSS                             │
+│                    Ks Vision AI                              │
 │                                                              │
 │  ┌────────────┐   ┌──────────────┐   ┌───────────────────┐  │
 │  │ Product    │   │ Sales &      │   │ AI Predictions    │  │
@@ -385,8 +384,9 @@ erDiagram
 | Technology | Version | Purpose |
 |---|---|---|
 | **Node.js** | 20+ LTS | JavaScript runtime for Next.js server execution |
-| **Supabase Postgres** | Cloud (M0 Free Tier) | PostgreSQL relational database for flexible textile product schemas |
-| **Supabase Client** | 8.x | Object row Mapper (ODM) for Supabase schema validation and querying |
+| **Supabase Postgres** | Cloud | PostgreSQL relational database for flexible textile product schemas |
+| **Supabase Auth** | SSR | Secure, server-side authentication using HTTP-only cookies |
+| **Supabase Storage** | Cloud | Managed cloud storage for uploading and serving fabric product images |
 | **Next.js Server Actions** | Built-in | Type-safe server functions for secure database CRUD operations |
 
 ### 6.3 Machine Learning Technologies
@@ -405,8 +405,7 @@ erDiagram
 
 | Technology | Purpose |
 |---|---|
-| **Vercel** | Cloud hosting for Next.js frontend (automatic CI/CD from GitHub) |
-| **Render / PythonAnywhere** | Cloud hosting for Flask ML microservice |
+| **Vercel** | Unified Cloud hosting for Next.js frontend and Python ML Microservice (Serverless) |
 | **Git & GitHub** | Version control and source code repository |
 
 ---
@@ -479,8 +478,10 @@ Upon completion, the system will deliver a **fully functional, cloud-deployed De
 | **Phase 2:** Database Integration | Week 3–4 | Set up Supabase Postgres cloud database, define SQL schemas (Product, Customer, Sale), implement Server Actions for CRUD operations, build 1-Click Database Seeder | ✅ Complete |
 | **Phase 3:** Interactive Modals & CRUD | Week 5–6 | Build Product Add/Edit form modal with Zod validation, connect pages to live Supabase data with mock fallback, implement role-based access control (Admin vs Employee) | ✅ Complete |
 | **Phase 4:** ML Microservice | Week 7–10 | Train RandomForest and KMeans models using Scikit-Learn, build Flask REST API endpoints, implement AI service bridge in Next.js with graceful fallback handling | ✅ Complete |
-| **Phase 5:** Testing & rowation | Week 11–12 | Execute TypeScript strict type-checking (0 errors), production build verification (0 errors), write project rowation, create Student Viva Guide | ✅ Complete |
-| **Phase 6:** Enhancements | Week 13–16 | Customer and Sale creation modals, full Apriori and TimeSeries implementation in Flask, PDF report export, final viva preparation | 🔜 Planned |
+| **Phase 5:** Testing & Documentation | Week 11 | Execute TypeScript strict type-checking, production build verification, write project documentation, create Student Viva Guide | ✅ Complete |
+| **Phase 6:** Advanced Modals & Storage | Week 12 | Implement Supabase Storage for fabric images, Customer Add/Edit modal, and Sale Invoice Builder with automatic GST calc | ✅ Complete |
+| **Phase 7:** Live ML & Auth Integration | Week 13-14 | Connect Next.js directly to Flask ML Service endpoints. Migrate to Supabase Server-Side Authentication (SSR Auth) with global route protection | ✅ Complete |
+| **Phase 8:** Enhancements | Week 15-16 | Full Apriori and TimeSeries implementation in Flask, PDF report export, final viva preparation | 🔜 Planned |
 
 ### 9.2 Key Milestones
 

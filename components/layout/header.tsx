@@ -8,7 +8,6 @@ import type { AuthUser } from "@/lib/actions/auth-actions";
 interface HeaderProps {
   userRole: UserRole;
   authUser: AuthUser;
-  onToggleRole: () => void;
   onToggleMobileMenu: () => void;
   onLogout: () => void;
   isMobileOpen: boolean;
@@ -17,7 +16,6 @@ interface HeaderProps {
 export function Header({
   userRole,
   authUser,
-  onToggleRole,
   onToggleMobileMenu,
   onLogout,
   isMobileOpen,
@@ -56,32 +54,6 @@ export function Header({
 
       {/* Header Actions */}
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Role Toggle Switcher (Demo Role Switcher) */}
-        <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-1 border border-slate-200">
-          <button
-            onClick={onToggleRole}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
-              userRole === "admin"
-                ? "bg-white text-indigo-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <span>Admin</span>
-          </button>
-          <button
-            onClick={onToggleRole}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
-              userRole === "employee"
-                ? "bg-white text-emerald-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <UserCheck className="h-3.5 w-3.5" />
-            <span>Employee</span>
-          </button>
-        </div>
-
         {/* Notification Bell */}
         <Button
           variant="ghost"
