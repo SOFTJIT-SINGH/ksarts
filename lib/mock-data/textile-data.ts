@@ -5,6 +5,7 @@ import {
   AIPredictionOverview,
   SalesForecastPoint,
   DemandForecastItem,
+  BundleRecommendation,
 } from "../types";
 
 export const MOCK_PRODUCTS: Product[] = [
@@ -302,5 +303,22 @@ export const MOCK_DEMAND_ITEMS: DemandForecastItem[] = [
     predictedDemandNext30Days: 110,
     recommendedAction: "Maintain Stock",
     confidenceScore: 88,
+  },
+];
+
+export const MOCK_BUNDLE_RECOMMENDATIONS: BundleRecommendation[] = [
+  {
+    id: "mock-bundle-1",
+    items: ["Banarasi Silk Saree", "Zardozi Dupatta"],
+    description: "84% of wholesale buyers purchasing Banarasi Sarees also order matching Dupattas.",
+    confidence: 0.84,
+    lift: 2.1,
+  },
+  {
+    id: "mock-bundle-2",
+    items: ["Cotton Kurti Fabric", "Linen Trouser Material"],
+    description: "65% of customers buying Kurti fabric pair it with Linen trouser material.",
+    confidence: 0.65,
+    lift: 1.8,
   },
 ];

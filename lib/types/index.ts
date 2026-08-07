@@ -92,3 +92,11 @@ export interface DemandForecastItem {
   recommendedAction: "Restock Immediately" | "Maintain Stock" | "Discount / Clearance";
   confidenceScore: number; // percentage e.g. 92%
 }
+
+export interface BundleRecommendation {
+  id: string;
+  items: string[];
+  description: string;
+  confidence: number;
+  lift: number;
+}

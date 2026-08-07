@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import apriori, association_rules
 
 # Load env variables from parent directory
 load_dotenv(os.path.join(os.path.dirname(__dirname__), '.env'))
@@ -172,6 +174,86 @@ def segment_customers():
         })
         
     return jsonify({"segments": results})
+
+@app.route("/api/v1/predict/bundles", methods=["GET"])
+def predict_bundles():
+    """Generates product bundle recommendations using Apriori algorithm on live sales data."""
+    sales_data = get_supabase_data("sales")
+    
+    # Fallback to mock data if there isn't enough live sales data to run Apriori
+    if not sales_data or len(sales_data) < 5:
+        return jsonify({
+            "bundles": [
+                {
+                    "id": "mock-bundle-1",
+                    "items": ["Banarasi Silk Saree", "Zardozi Dupatta"],
+                    "description": "84% of wholesale buyers purchasing Banarasi Sarees also order matching Dupattas.",
+                    "confidence": 0.84,
+                    "lift": 2.1
+                },
+                {
+                    "id": "mock-bundle-2",
+                    "items": ["Cotton Kurti Fabric", "Linen Trouser Material"],
+                    "description": "65% of customers buying Kurti fabric pair it with Linen trouser material.",
+                    "confidence": 0.65,
+                    "lift": 1.8
+                }
+            ]
+        })
+
+    # Prepare transactions list from sales invoices
+    transactions = []
+    for sale in sales_data:
+        # Assuming 'items' is a JSON array of objects with 'productName'
+        items = sale.get('items', [])
+        transaction = [item.get('productName', 'Unknown') for item in items if isinstance(item, dict)]
+        # Filter out empty transactions
+        if len(transaction) > 0:
+            transactions.append(transaction)
+            
+    # Need at least a few transactions with multiple items to find rules
+    if len(transactions) < 5:
+        return jsonify({"bundles": []})
+        
+    # Run Apriori
+    te = TransactionEncoder()
+    te_ary = te.fit(transactions).transform(transactions)
+    df = pd.DataFrame(te_ary, columns=te.columns_)
+    
+    # Generate frequent itemsets
+    frequent_itemsets = apriori(df, min_support=0.05, use_colnames=True)
+    
+    if frequent_itemsets.empty:
+        return jsonify({"bundles": []})
+        
+    # Generate association rules
+    rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=0.3)
+    
+    if rules.empty:
+        return jsonify({"bundles": []})
+        
+    # Sort rules by lift (strength of association)
+    rules = rules.sort_values(by="lift", ascending=False).head(5)
+    
+    bundles = []
+    for idx, row in rules.iterrows():
+        antecedents = list(row['antecedents'])
+        consequents = list(row['consequents'])
+        all_items = antecedents + consequents
+        
+        conf_pct = int(row['confidence'] * 100)
+        ant_str = ", ".join(antecedents)
+        con_str = ", ".join(consequents)
+        
+        bundles.append({
+            "id": f"bundle-{idx}",
+            "items": all_items,
+            "description": f"{conf_pct}% of customers buying {ant_str} also order {con_str}.",
+            "confidence": round(row['confidence'], 2),
+            "lift": round(row['lift'], 2)
+        })
+        
+    return jsonify({"bundles": bundles})
 
 if __name__ == "__main__":
     print("Starting Flask ML Microservice on http://127.0.0.1:5000 ...")

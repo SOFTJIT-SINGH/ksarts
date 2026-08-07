@@ -2,11 +2,13 @@ import {
   AIPredictionOverview,
   SalesForecastPoint,
   DemandForecastItem,
+  BundleRecommendation,
 } from "@/lib/types";
 import {
   MOCK_AI_OVERVIEW,
   MOCK_SALES_FORECAST,
   MOCK_DEMAND_ITEMS,
+  MOCK_BUNDLE_RECOMMENDATIONS,
 } from "@/lib/mock-data/textile-data";
 
 const FLASK_AI_SERVICE_URL =
@@ -46,5 +48,28 @@ export async function getSalesForecastFromAI(): Promise<{
       forecast: MOCK_SALES_FORECAST,
       demand: MOCK_DEMAND_ITEMS,
     };
+  }
+}
+
+/**
+ * Fetches Apriori product bundle recommendations from Flask ML.
+ */
+export async function getBundleRecommendationsFromAI(): Promise<BundleRecommendation[]> {
+  try {
+    const response = await fetch(`${FLASK_AI_SERVICE_URL}/bundles`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      next: { revalidate: 3600 },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Flask service responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.bundles && data.bundles.length > 0 ? data.bundles : MOCK_BUNDLE_RECOMMENDATIONS;
+  } catch (error) {
+    console.warn("Flask AI Service unreachable for bundles, using mock bundles:", error);
+    return MOCK_BUNDLE_RECOMMENDATIONS;
   }
 }

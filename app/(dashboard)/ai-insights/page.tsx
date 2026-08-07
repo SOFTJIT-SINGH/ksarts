@@ -18,17 +18,27 @@ import {
   MOCK_AI_OVERVIEW,
 } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
-import { getSalesForecastFromAI } from "@/lib/services/ai-service";
+import { getSalesForecastFromAI, getBundleRecommendationsFromAI } from "@/lib/services/ai-service";
+import { BundleRecommendation } from "@/lib/types";
 
 export default async function AIInsightsPage() {
   let salesData = { overview: MOCK_AI_OVERVIEW, forecast: MOCK_SALES_FORECAST };
+  let bundlesData: BundleRecommendation[] = [];
   let isLive = false;
 
   try {
-    const aiSales = await getSalesForecastFromAI();
+    const [aiSales, aiBundles] = await Promise.all([
+      getSalesForecastFromAI(),
+      getBundleRecommendationsFromAI()
+    ]);
+    
     if (aiSales) {
       salesData = aiSales;
       isLive = true;
+    }
+    
+    if (aiBundles) {
+      bundlesData = aiBundles;
     }
   } catch (error) {
     console.error("Failed to connect to AI service", error);
@@ -184,14 +194,27 @@ export default async function AIInsightsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2 pt-1">
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1">
-              <div className="font-bold text-slate-900">
-                Banarasi Silk Saree + Zardozi Dupatta Bundle
+            {bundlesData.length > 0 ? (
+              bundlesData.map((bundle) => (
+                <div key={bundle.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1">
+                  <div className="flex justify-between items-start">
+                    <div className="font-bold text-slate-900 leading-tight">
+                      {bundle.items.join(" + ")}
+                    </div>
+                    <Badge variant="outline" className="text-[9px] bg-amber-50 text-amber-700 border-amber-200">
+                      {bundle.confidence * 100}% Conf.
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {bundle.description}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="text-center p-3 text-xs text-slate-500 bg-slate-50 rounded-lg border border-slate-100">
+                Not enough sales data to generate Apriori bundles.
               </div>
-              <p className="text-[11px] text-slate-500">
-                84% of wholesale buyers purchasing Banarasi Sarees also order matching Brocade Blouse pieces within 14 days.
-              </p>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
