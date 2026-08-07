@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ks Arts — AI Textile Sales & Inventory Prediction System",
+  title: "KS Vision — AI Textile Sales & Inventory Prediction System",
   description:
     "Decision Support System for Textile Wholesale and Retail Businesses powered by AI predictions, fabric demand forecasting, customer RFM segmentation, and inventory management.",
 };

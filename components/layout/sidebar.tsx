@@ -95,7 +95,7 @@ export function Sidebar({ userRole, isMobileOpen, onCloseMobile }: SidebarProps)
           </div>
           <div className="flex flex-col">
             <span className="text-base font-bold tracking-tight text-slate-900 leading-none">
-              Ks Arts AI
+              KS Vision AI
             </span>
             <span className="text-[11px] font-medium text-indigo-600 tracking-wide uppercase mt-0.5">
               Textile Intelligence

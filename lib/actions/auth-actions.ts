@@ -1,7 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { UserRole } from "@/lib/types";
+import { revalidatePath } from "next/cache";
 
 // ─── Types ─────────────────────────────────────────────────────────
 export interface AuthUser {
@@ -15,31 +17,6 @@ export interface AuthResult {
   success: boolean;
   user?: AuthUser;
   error?: string;
-}
-
-// ─── Demo Users (used when Supabase is not configured) ─────────────
-const DEMO_USERS: Record<string, AuthUser> = {
-  admin: {
-    id: "demo-admin-001",
-    email: "khushi@ksarts.in",
-    fullName: "Khushi Soni",
-    role: "admin",
-  },
-  employee: {
-    id: "demo-employee-001",
-    email: "priya@ksarts.in",
-    fullName: "Priya Sharma",
-    role: "employee",
-  },
-};
-
-// ─── Helper: Check if live Supabase is configured ──────────────────
-function isSupabaseConfigured(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("dummy")
-  );
 }
 
 // ─── Helper: Extract AuthUser from Supabase user object ────────────
@@ -58,25 +35,6 @@ export async function loginAction(
   email: string,
   password: string
 ): Promise<AuthResult> {
-  // Demo mode fallback
-  if (!isSupabaseConfigured()) {
-    const demoUser =
-      email === DEMO_USERS.admin.email
-        ? DEMO_USERS.admin
-        : email === DEMO_USERS.employee.email
-          ? DEMO_USERS.employee
-          : null;
-
-    if (demoUser) {
-      return { success: true, user: demoUser };
-    }
-    return {
-      success: false,
-      error: "Invalid demo credentials. Use khushi@ksarts.in or priya@ksarts.in with any password.",
-    };
-  }
-
-  // Live Supabase authentication
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -103,22 +61,11 @@ export async function signupAction(
   email: string,
   password: string,
   fullName: string,
-  role: UserRole
+  phone: string
 ): Promise<AuthResult> {
-  // Demo mode fallback
-  if (!isSupabaseConfigured()) {
-    return {
-      success: true,
-      user: {
-        id: "demo-new-user",
-        email,
-        fullName,
-        role,
-      },
-    };
-  }
+  // Always default to employee for new registrations
+  const role: UserRole = "employee";
 
-  // Live Supabase signup
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signUp({
@@ -128,6 +75,7 @@ export async function signupAction(
         data: {
           full_name: fullName,
           role: role,
+          phone: phone,
         },
       },
     });
@@ -148,10 +96,6 @@ export async function signupAction(
 
 // ─── Logout Action ─────────────────────────────────────────────────
 export async function logoutAction(): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured()) {
-    return { success: true };
-  }
-
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.signOut();
@@ -166,10 +110,6 @@ export async function logoutAction(): Promise<{ success: boolean; error?: string
 
 // ─── Get Current User Action ───────────────────────────────────────
 export async function getCurrentUserAction(): Promise<AuthResult> {
-  if (!isSupabaseConfigured()) {
-    return { success: false, error: "Demo mode: no persistent session." };
-  }
-
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.getUser();
@@ -184,8 +124,81 @@ export async function getCurrentUserAction(): Promise<AuthResult> {
   }
 }
 
-// ─── Demo Login Action (1-Click) ───────────────────────────────────
-export async function demoLoginAction(role: UserRole): Promise<AuthResult> {
-  const user = role === "admin" ? DEMO_USERS.admin : DEMO_USERS.employee;
-  return { success: true, user };
+// ─── Admin Client Helper ───────────────────────────────────────────
+function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
+// ─── Get All Users (Admin Only) ────────────────────────────────────
+export async function getUsersAction(): Promise<{ success: boolean; users?: AuthUser[]; error?: string }> {
+  try {
+    const currentUserRes = await getCurrentUserAction();
+    if (!currentUserRes.success || currentUserRes.user?.role !== "admin") {
+      return { success: false, error: "Unauthorized. Only admins can view users." };
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return { success: false, error: "Service Role Key is missing. Cannot fetch users." };
+    }
+
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient.auth.admin.listUsers();
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    const users = data.users.map(extractAuthUser);
+    return { success: true, users };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to fetch users." };
+  }
+}
+
+// ─── Update User Role (Admin Only) ─────────────────────────────────
+export async function updateUserRoleAction(userId: string, newRole: UserRole): Promise<{ success: boolean; error?: string }> {
+  try {
+    const currentUserRes = await getCurrentUserAction();
+    if (!currentUserRes.success || currentUserRes.user?.role !== "admin") {
+      return { success: false, error: "Unauthorized. Only admins can update roles." };
+    }
+
+    if (currentUserRes.user.id === userId) {
+      return { success: false, error: "You cannot change your own role." };
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return { success: false, error: "Service Role Key is missing. Cannot update user." };
+    }
+
+    const adminClient = createAdminClient();
+    
+    // Update user metadata. Note that for existing metadata, we might want to fetch it first,
+    // but updateUserById merges user_metadata by default in recent Supabase versions.
+    const { data, error: userError } = await adminClient.auth.admin.getUserById(userId);
+    if (userError) return { success: false, error: userError.message };
+
+    const currentMeta = data.user.user_metadata || {};
+    
+    const { error } = await adminClient.auth.admin.updateUserById(userId, {
+      user_metadata: { ...currentMeta, role: newRole }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to update user." };
+  }
 }

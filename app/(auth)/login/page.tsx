@@ -19,7 +19,6 @@ import {
 import {
   loginAction,
   signupAction,
-  demoLoginAction,
 } from "@/lib/actions/auth-actions";
 import type { UserRole } from "@/lib/types";
 
@@ -32,15 +31,18 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<AuthTab>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<UserRole>("admin");
+  const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   // ─── Handlers ──────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    console.log("handleLogin fired", email);
     setError("");
     setIsLoading(true);
 
@@ -65,26 +67,18 @@ export default function LoginPage() {
       return;
     }
 
-    const result = await signupAction(email, password, fullName, role);
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setIsLoading(false);
+      return;
+    }
+
+    const result = await signupAction(email, password, fullName, phone);
 
     if (result.success && result.user) {
       router.push("/");
     } else {
       setError(result.error || "Signup failed.");
-    }
-    setIsLoading(false);
-  }
-
-  async function handleDemoLogin(demoRole: UserRole) {
-    setError("");
-    setIsLoading(true);
-
-    const result = await demoLoginAction(demoRole);
-
-    if (result.success && result.user) {
-      router.push("/");
-    } else {
-      setError(result.error || "Demo login failed.");
     }
     setIsLoading(false);
   }
@@ -99,7 +93,7 @@ export default function LoginPage() {
         </div>
         <div className="text-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Ks Arts AI
+            KS Vision AI
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             AI-Powered Textile Sales & Inventory System
@@ -248,6 +242,28 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Phone Number */}
+            <div>
+              <label
+                htmlFor="signup-phone"
+                className="mb-1.5 block text-xs font-semibold text-slate-700"
+              >
+                Phone Number
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">+91</span>
+                <input
+                  id="signup-phone"
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="9876543210"
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
             {/* Email */}
             <div>
               <label
@@ -304,35 +320,36 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Role Selection */}
+            {/* Confirm Password */}
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Account Role
+              <label
+                htmlFor="signup-confirm-password"
+                className="mb-1.5 block text-xs font-semibold text-slate-700"
+              >
+                Confirm Password
               </label>
-              <div className="flex gap-2">
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="signup-confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat your password"
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-10 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
                 <button
                   type="button"
-                  onClick={() => setRole("admin")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition-all cursor-pointer ${
-                    role === "admin"
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
-                      : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                  }`}
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
-                  <ShieldCheck className="h-4 w-4" />
-                  Admin (Owner)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("employee")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition-all cursor-pointer ${
-                    role === "employee"
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500"
-                      : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <UserCheck className="h-4 w-4" />
-                  Employee
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -352,53 +369,6 @@ export default function LoginPage() {
             </button>
           </form>
         )}
-
-        {/* ── Divider ─────────────────────────────────────── */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200" />
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-3 font-medium text-slate-400">
-              Quick Demo Login
-            </span>
-          </div>
-        </div>
-
-        {/* ── 1-Click Demo Login Buttons ──────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => handleDemoLogin("admin")}
-            disabled={isLoading}
-            className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition-all hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 cursor-pointer group"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-bold shadow-sm group-hover:shadow-md transition-shadow">
-              KS
-            </div>
-            <span className="text-xs font-semibold text-slate-800">
-              Khushi Soni
-            </span>
-            <span className="text-[10px] text-indigo-600 font-medium">
-              Admin (Owner)
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleDemoLogin("employee")}
-            disabled={isLoading}
-            className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition-all hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-50 cursor-pointer group"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold shadow-sm group-hover:shadow-md transition-shadow">
-              PS
-            </div>
-            <span className="text-xs font-semibold text-slate-800">
-              Priya Sharma
-            </span>
-            <span className="text-[10px] text-emerald-600 font-medium">
-              Sales Executive
-            </span>
-          </button>
-        </div>
       </div>
 
       {/* ── Footer ──────────────────────────────────────────── */}

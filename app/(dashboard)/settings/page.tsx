@@ -3,8 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SeedDatabaseButton } from "@/components/settings/seed-button";
+import { UserManagementCard } from "@/components/settings/user-management";
+import { getCurrentUserAction } from "@/lib/actions/auth-actions";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const { user } = await getCurrentUserAction();
+  const isAdmin = user?.role === "admin";
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -24,20 +28,20 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* MongoDB Database Initialization */}
+        {/* Supabase Database Initialization */}
         <Card className="border-indigo-100 shadow-xs">
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Database className="h-5 w-5 text-indigo-600" />
-              MongoDB Atlas Database Initialization
+              Supabase PostgreSQL Database Initialization
             </CardTitle>
             <CardDescription className="text-xs">
-              Populate MongoDB Atlas with realistic Indian textile catalog, customers, and invoices
+              Populate Supabase with realistic Indian textile catalog, customers, and invoices
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-slate-600 leading-relaxed">
-              Use the 1-click seeder below to automatically connect to your <span className="font-semibold text-slate-900">MONGODB_URI</span> and populate collections for Products, Customers, and Sales Invoices.
+              Use the 1-click seeder below to automatically connect to your <span className="font-semibold text-slate-900">Supabase</span> instance and populate tables for Products, Customers, and Sales Invoices.
             </p>
             <SeedDatabaseButton />
           </CardContent>
@@ -69,6 +73,11 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* User Management (Admins Only) */}
+        {isAdmin && user && (
+          <UserManagementCard currentUserId={user.id} />
+        )}
       </div>
     </div>
   );
