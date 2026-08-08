@@ -21,7 +21,6 @@ const FLASK_AI_SERVICE_URL =
 export async function getSalesForecastFromAI(): Promise<{
   overview: AIPredictionOverview;
   forecast: SalesForecastPoint[];
-  demand: DemandForecastItem[];
 }> {
   try {
     const response = await fetch(`${FLASK_AI_SERVICE_URL}/sales`, {
@@ -39,14 +38,12 @@ export async function getSalesForecastFromAI(): Promise<{
     return {
       overview: data.overview || MOCK_AI_OVERVIEW,
       forecast: data.forecast || MOCK_SALES_FORECAST,
-      demand: data.demand || MOCK_DEMAND_ITEMS,
     };
   } catch (error) {
     console.warn("Flask AI Service unreachable, using fallback predictions:", error);
     return {
       overview: MOCK_AI_OVERVIEW,
       forecast: MOCK_SALES_FORECAST,
-      demand: MOCK_DEMAND_ITEMS,
     };
   }
 }
@@ -71,5 +68,28 @@ export async function getBundleRecommendationsFromAI(): Promise<BundleRecommenda
   } catch (error) {
     console.warn("Flask AI Service unreachable for bundles, using mock bundles:", error);
     return MOCK_BUNDLE_RECOMMENDATIONS;
+  }
+}
+
+/**
+ * Fetches TimeSeries Demand Forecasting from Flask ML.
+ */
+export async function getDemandForecastFromAI(): Promise<DemandForecastItem[]> {
+  try {
+    const response = await fetch(`${FLASK_AI_SERVICE_URL}/demand`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      next: { revalidate: 3600 },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Flask service responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.demand && data.demand.length > 0 ? data.demand : MOCK_DEMAND_ITEMS;
+  } catch (error) {
+    console.warn("Flask AI Service unreachable for demand, using mock demand:", error);
+    return MOCK_DEMAND_ITEMS;
   }
 }

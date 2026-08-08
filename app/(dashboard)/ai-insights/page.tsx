@@ -18,18 +18,20 @@ import {
   MOCK_AI_OVERVIEW,
 } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
-import { getSalesForecastFromAI, getBundleRecommendationsFromAI } from "@/lib/services/ai-service";
+import { getSalesForecastFromAI, getBundleRecommendationsFromAI, getDemandForecastFromAI } from "@/lib/services/ai-service";
 import { BundleRecommendation } from "@/lib/types";
 
 export default async function AIInsightsPage() {
   let salesData = { overview: MOCK_AI_OVERVIEW, forecast: MOCK_SALES_FORECAST };
   let bundlesData: BundleRecommendation[] = [];
+  let demandData = MOCK_DEMAND_ITEMS;
   let isLive = false;
 
   try {
-    const [aiSales, aiBundles] = await Promise.all([
+    const [aiSales, aiBundles, aiDemand] = await Promise.all([
       getSalesForecastFromAI(),
-      getBundleRecommendationsFromAI()
+      getBundleRecommendationsFromAI(),
+      getDemandForecastFromAI()
     ]);
     
     if (aiSales) {
@@ -39,6 +41,10 @@ export default async function AIInsightsPage() {
     
     if (aiBundles) {
       bundlesData = aiBundles;
+    }
+    
+    if (aiDemand && aiDemand.length > 0) {
+      demandData = aiDemand;
     }
   } catch (error) {
     console.error("Failed to connect to AI service", error);
@@ -126,7 +132,7 @@ export default async function AIInsightsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2 pt-1">
-            {MOCK_DEMAND_ITEMS.slice(0, 2).map((item) => (
+            {demandData.slice(0, 3).map((item) => (
               <div
                 key={item.productId}
                 className="flex items-center justify-between p-2.5 rounded-lg border border-slate-100 bg-slate-50/50 text-xs"
@@ -137,7 +143,7 @@ export default async function AIInsightsPage() {
                     Predicted 30d demand: <span className="font-bold">{item.predictedDemandNext30Days} units</span>
                   </div>
                 </div>
-                <Badge variant="warning" className="text-[10px]">
+                <Badge variant={item.recommendedAction === "Restock Immediately" ? "destructive" : item.recommendedAction === "Monitor Inventory" ? "warning" : "success"} className="text-[10px]">
                   {item.recommendedAction}
                 </Badge>
               </div>

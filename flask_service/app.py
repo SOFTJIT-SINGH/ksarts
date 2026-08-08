@@ -32,9 +32,11 @@ HEADERS = {
 # Load Models if exist
 SALES_MODEL_PATH = "models/sales_model.joblib"
 KMEANS_MODEL_PATH = "models/customer_kmeans.joblib"
+DEMAND_MODEL_PATH = "models/demand_model.joblib"
 
 sales_model = joblib.load(SALES_MODEL_PATH) if os.path.exists(SALES_MODEL_PATH) else None
 kmeans_model = joblib.load(KMEANS_MODEL_PATH) if os.path.exists(KMEANS_MODEL_PATH) else None
+demand_model = joblib.load(DEMAND_MODEL_PATH) if os.path.exists(DEMAND_MODEL_PATH) else None
 
 def get_supabase_data(table, select="*"):
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -57,7 +59,8 @@ def health_check():
         "status": "online",
         "models_loaded": {
             "sales_prediction": sales_model is not None,
-            "customer_segmentation": kmeans_model is not None
+            "customer_segmentation": kmeans_model is not None,
+            "demand_forecasting": demand_model is not None
         },
         "supabase_connected": bool(SUPABASE_URL and SUPABASE_KEY)
     })
@@ -122,21 +125,56 @@ def predict_sales():
         "forecast": forecast
     })
 
-@app.route("/api/v1/predict/demand", methods=["POST"])
+@app.route("/api/v1/predict/demand", methods=["GET"])
 def predict_demand():
-    """Predicts stockout risk and 30-day product demand."""
-    data = request.get_json() or {}
-    stock = data.get("stockQuantity", 20)
-    reorder = data.get("reorderLevel", 15)
-    
-    predicted_demand = stock + int(np.random.randint(30, 80))
-    action = "Restock Immediately" if stock <= reorder else "Maintain Stock"
+    """Predicts stockout risk and 30-day product demand using real models."""
+    if not demand_model:
+        return jsonify({"error": "Demand model not loaded"}), 500
 
-    return jsonify({
-        "predictedDemandNext30Days": predicted_demand,
-        "recommendedAction": action,
-        "confidenceScore": 92
-    })
+    products = get_supabase_data("products")
+    if not products:
+        return jsonify({"demand": []})
+
+    df = pd.DataFrame(products)
+    if 'stockQuantity' not in df.columns or 'unitPrice' not in df.columns:
+        return jsonify({"error": "Missing required features in product data"}), 400
+
+    current_month = pd.Timestamp.now().month
+
+    results = []
+    for idx, row in df.iterrows():
+        stock = float(row.get('stockQuantity', 0))
+        price = float(row.get('unitPrice', 0))
+        # Features: [StockQuantity, UnitPrice, CurrentMonth]
+        features = np.array([[stock, price, current_month]])
+        
+        predicted_demand = int(demand_model.predict(features)[0])
+        
+        # Calculate risk and recommendation
+        action = "Maintain Stock"
+        if predicted_demand > stock:
+            action = "Restock Immediately"
+        elif predicted_demand > (stock * 0.8):
+            action = "Monitor Inventory"
+
+        results.append({
+            "productId": row['id'],
+            "productName": row['name'],
+            "predictedDemandNext30Days": predicted_demand,
+            "recommendedAction": action,
+            "stockQuantity": int(stock)
+        })
+
+    # Sort by risk (Restock Immediately first, then highest demand gap)
+    def sort_key(x):
+        priority = 0 if x["recommendedAction"] == "Restock Immediately" else 1
+        gap = x["predictedDemandNext30Days"] - x["stockQuantity"]
+        return (priority, -gap)
+
+    results.sort(key=sort_key)
+    
+    # Return top 5 high-risk items
+    return jsonify({"demand": results[:5]})
 
 @app.route("/api/v1/predict/customer-segments", methods=["POST"])
 def segment_customers():

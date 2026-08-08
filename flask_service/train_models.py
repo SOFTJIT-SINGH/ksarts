@@ -40,6 +40,30 @@ def train_and_save_models():
     joblib.dump(kmeans_model, "models/customer_kmeans.joblib")
     print("[OK] Saved models/customer_kmeans.joblib")
 
+    # 3. Train Demand Forecasting Model (Random Forest Regressor)
+    print("Training Demand Forecasting Model...")
+    np.random.seed(42)
+    # Features: [StockQuantity, UnitPrice, CurrentMonth]
+    # We will generate some synthetic training data. High stock or lower price could mean different demand, etc.
+    # We'll just train a general model to predict demand in the next 30 days
+    X_demand = np.column_stack([
+        np.random.randint(0, 500, 1000),         # StockQuantity
+        np.random.uniform(500, 5000, 1000),      # UnitPrice
+        np.random.randint(1, 13, 1000)           # Month
+    ])
+    
+    # Synthetic demand generation logic:
+    # Demand is higher if price is lower, and also higher in months 10, 11 (festive)
+    price_factor = 5000 / (X_demand[:, 1] + 1)
+    month_factor = np.where((X_demand[:, 2] == 10) | (X_demand[:, 2] == 11), 50, 10)
+    base_random_demand = np.random.randint(10, 100, 1000)
+    y_demand = np.clip(base_random_demand + price_factor * 10 + month_factor, 5, 300)
+    
+    demand_model = RandomForestRegressor(n_estimators=50, random_state=42)
+    demand_model.fit(X_demand, y_demand)
+    joblib.dump(demand_model, "models/demand_model.joblib")
+    print("[OK] Saved models/demand_model.joblib")
+
     print("\n[SUCCESS] All Machine Learning models trained and serialized successfully!")
 
 if __name__ == "__main__":
