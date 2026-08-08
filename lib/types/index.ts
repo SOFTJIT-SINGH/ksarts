@@ -89,7 +89,7 @@ export interface DemandForecastItem {
   category: ProductCategory;
   currentStock: number;
   predictedDemandNext30Days: number;
-  recommendedAction: "Restock Immediately" | "Maintain Stock" | "Discount / Clearance";
+  recommendedAction: "Restock Immediately" | "Monitor Inventory" | "Maintain Stock" | "Discount / Clearance";
   confidenceScore: number; // percentage e.g. 92%
 }
 
