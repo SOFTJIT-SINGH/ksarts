@@ -39,12 +39,12 @@ export function SeedDatabaseButton() {
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Connecting & Seeding MongoDB...</span>
+            <span>Connecting & Seeding Supabase...</span>
           </>
         ) : (
           <>
             <Database className="h-4 w-4" />
-            <span>Seed MongoDB Atlas (1-Click Init)</span>
+            <span>Seed Supabase PostgreSQL (1-Click Init)</span>
           </>
         )}
       </Button>

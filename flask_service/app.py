@@ -65,6 +65,34 @@ def health_check():
         "supabase_connected": bool(SUPABASE_URL and SUPABASE_KEY)
     })
 
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    """
+    Live health endpoint for the Settings page status monitor.
+    Actually probes Supabase (limit-1 query) so 'supabase_connected'
+    reflects the real network connection, not just env var presence.
+    """
+    supabase_ok = False
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            url = f"{SUPABASE_URL}/rest/v1/products?select=id&limit=1"
+            response = requests.get(url, headers=HEADERS, timeout=5)
+            supabase_ok = response.status_code == 200
+        except Exception as e:
+            print(f"Health check Supabase probe failed: {e}")
+            supabase_ok = False
+
+    return jsonify({
+        "service": "KS Vision AI ML Microservice",
+        "status": "ok",
+        "models_loaded": {
+            "sales_prediction": sales_model is not None,
+            "customer_segmentation": kmeans_model is not None,
+            "demand_forecasting": demand_model is not None
+        },
+        "supabase_connected": supabase_ok
+    })
+
 @app.route("/api/v1/predict/sales", methods=["GET"])
 def predict_sales():
     """Predicts next month revenue based on live Supabase sales data."""
