@@ -1,59 +1,137 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { FileText, Download, BarChart3, TrendingUp, DollarSign, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  FileText,
+  Download,
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+  Loader2,
+  Users,
+  FileSpreadsheet,
+  Package,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatINR } from "@/lib/utils";
 import { getSalesAction } from "@/lib/actions/sale-actions";
 import { getProductsAction } from "@/lib/actions/product-actions";
-import { SaleTransaction, Product } from "@/lib/types";
+import { getCustomersAction } from "@/lib/actions/customer-actions";
+import { SaleTransaction, Product, Customer } from "@/lib/types";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+
+// ─── CSV helpers ──────────────────────────────────────────────────────────────
+
+function escapeCSV(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  // Wrap in quotes if it contains comma, quote, or newline
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+type CSVRow = (string | number | null | undefined)[];
+
+function downloadCSV(rows: CSVRow[], filename: string) {
+  const csvContent = rows.map((row) => row.map(escapeCSV).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" }); // BOM for Excel
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+type PendingPDF = { title: string; filename: string } | null;
 
 export function ReportGenerator() {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [reportType, setReportType] = useState<string | null>(null);
+  // Stores the PDF job to trigger AFTER the DOM renders the data
+  const [pendingPDF, setPendingPDF] = useState<PendingPDF>(null);
 
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const generatePDF = async (title: string, filename: string) => {
-    if (!reportRef.current) return;
-    
-    // Slight delay to ensure React has rendered the data into the hidden div
-    setTimeout(async () => {
+  // ── PDF: fire only after React has committed data to the hidden div ──────────
+  useEffect(() => {
+    if (!pendingPDF || !reportData || !reportRef.current) return;
+
+    const { filename } = pendingPDF;
+
+    // Use requestAnimationFrame to wait for the browser paint cycle
+    const rafId = requestAnimationFrame(async () => {
       try {
-        const canvas = await html2canvas(reportRef.current!, { scale: 2 });
+        const canvas = await html2canvas(reportRef.current!, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
         const imgData = canvas.toDataURL("image/png");
-        
+
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+        // If content overflows one A4 page, add multiple pages
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        if (pdfHeight <= pageHeight) {
+          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        } else {
+          let heightLeft = pdfHeight;
+          let position = 0;
+          pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+          heightLeft -= pageHeight;
+          while (heightLeft > 0) {
+            position -= pageHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pageHeight;
+          }
+        }
+
         pdf.save(filename);
       } catch (error) {
         console.error("Error generating PDF:", error);
+        alert("PDF generation failed. Please try again.");
       } finally {
         setIsGenerating(null);
         setReportData(null);
         setReportType(null);
+        setPendingPDF(null);
       }
-    }, 500);
-  };
+    });
+
+    return () => cancelAnimationFrame(rafId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPDF, reportData]);
+
+  // ── PDF Handlers ─────────────────────────────────────────────────────────────
 
   const handleRevenueStatement = async () => {
-    setIsGenerating("revenue");
+    setIsGenerating("revenue-pdf");
     try {
       const res = await getSalesAction();
       if (res.success && res.data) {
         const totalRev = res.data.reduce((acc, s) => acc + s.totalINR, 0);
         const totalTax = res.data.reduce((acc, s) => acc + s.taxINR, 0);
-        
+        // 1. Set the data that the hidden div needs
         setReportData({ sales: res.data, totalRev, totalTax });
         setReportType("revenue");
-        generatePDF("Monthly Revenue Statement", "KS_Vision_Revenue_Report.pdf");
+        // 2. Signal the useEffect to generate PDF after next render
+        setPendingPDF({ title: "Monthly Revenue Statement", filename: "KS_Vision_Revenue_Report.pdf" });
+      } else {
+        setIsGenerating(null);
       }
     } catch (err) {
       console.error(err);
@@ -62,15 +140,16 @@ export function ReportGenerator() {
   };
 
   const handleInventoryValuation = async () => {
-    setIsGenerating("inventory");
+    setIsGenerating("inventory-pdf");
     try {
       const res = await getProductsAction();
       if (res.success && res.data) {
-        const totalValue = res.data.reduce((acc, p) => acc + (p.stockQuantity * p.unitPrice), 0);
-        
+        const totalValue = res.data.reduce((acc, p) => acc + p.stockQuantity * p.unitPrice, 0);
         setReportData({ products: res.data, totalValue });
         setReportType("inventory");
-        generatePDF("Inventory Valuation Report", "KS_Vision_Inventory_Report.pdf");
+        setPendingPDF({ title: "Inventory Valuation Report", filename: "KS_Vision_Inventory_Report.pdf" });
+      } else {
+        setIsGenerating(null);
       }
     } catch (err) {
       console.error(err);
@@ -78,201 +157,446 @@ export function ReportGenerator() {
     }
   };
 
-  const handleAllReports = async () => {
-    // For simplicity, just generate the revenue statement for the 'export all' button.
-    await handleRevenueStatement();
+  // ── CSV Handlers ─────────────────────────────────────────────────────────────
+
+  const handleSalesCSV = async () => {
+    setIsGenerating("sales-csv");
+    try {
+      const res = await getSalesAction();
+      if (res.success && res.data && res.data.length > 0) {
+        const header = [
+          "Invoice #", "Date", "Customer", "Payment Mode", "Payment Status",
+          "Subtotal (INR)", "Tax (INR)", "Discount (INR)", "Total (INR)", "Sales Person",
+        ];
+        const rows = res.data.map((s: SaleTransaction) => [
+          s.invoiceNumber,
+          s.createdAt?.split("T")[0] || s.createdAt?.split(" ")[0] || "",
+          s.customerName,
+          s.paymentMode,
+          s.paymentStatus,
+          s.subtotalINR,
+          s.taxINR,
+          s.discountINR,
+          s.totalINR,
+          s.salesPerson,
+        ]);
+        downloadCSV([header, ...rows], "KS_Vision_Sales_Data.csv");
+      } else {
+        alert("No sales data found to export.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to export sales CSV. Please try again.");
+    } finally {
+      setIsGenerating(null);
+    }
   };
 
+  const handleInventoryCSV = async () => {
+    setIsGenerating("inventory-csv");
+    try {
+      const res = await getProductsAction();
+      if (res.success && res.data && res.data.length > 0) {
+        const header = [
+          "SKU", "Product Name", "Category", "Fabric Type", "Color",
+          "Unit Price (INR)", "MRP (INR)", "Stock Qty", "Unit", "Reorder Level",
+          "Status", "Supplier", "Created At",
+        ];
+        const rows = res.data.map((p: Product) => [
+          p.sku,
+          p.name,
+          p.category,
+          p.fabricType,
+          p.color,
+          p.unitPrice,
+          p.mrp,
+          p.stockQuantity,
+          p.unitOfMeasure,
+          p.reorderLevel,
+          p.status,
+          p.supplierName,
+          p.createdAt?.split("T")[0] || p.createdAt,
+        ]);
+        downloadCSV([header, ...rows], "KS_Vision_Inventory_Data.csv");
+      } else {
+        alert("No product data found to export.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to export inventory CSV. Please try again.");
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  const handleCustomersCSV = async () => {
+    setIsGenerating("customers-csv");
+    try {
+      const res = await getCustomersAction();
+      if (res.success && res.data && res.data.length > 0) {
+        const header = [
+          "Name", "Business Name", "Phone", "Email", "City", "Segment",
+          "Total Purchases (INR)", "Total Orders", "Credit Limit (INR)",
+          "Outstanding Balance (INR)", "Last Purchase Date",
+        ];
+        const rows = res.data.map((c: Customer) => [
+          c.name,
+          c.businessName,
+          c.phone,
+          c.email,
+          c.city,
+          c.segment,
+          c.totalPurchasesINR,
+          c.totalOrdersCount,
+          c.creditLimitINR,
+          c.outstandingBalanceINR,
+          c.lastPurchaseDate,
+        ]);
+        downloadCSV([header, ...rows], "KS_Vision_Customers_Data.csv");
+      } else {
+        alert("No customer data found to export.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to export customers CSV. Please try again.");
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  const isLoading = isGenerating !== null;
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Page Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-            Business Reports & Analytics
+            Business Reports &amp; Analytics
           </h1>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
-            Download financial statements, tax breakdown (GST), and inventory valuation reports
+            Download financial statements and inventory reports as PDF, or export raw data as CSV
           </p>
         </div>
-
-        <Button 
-          onClick={handleAllReports}
-          disabled={isGenerating !== null}
-          className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700"
-        >
-          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          <span>Export Main Report (PDF)</span>
-        </Button>
       </div>
 
-      {/* Report Cards Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Revenue Statement */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-indigo-600" />
-              Monthly Revenue Statement
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Detailed breakdown of total revenue, GST 5%, and net profit margins
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="outline" 
-              className="w-full text-xs h-9 justify-between"
-              onClick={handleRevenueStatement}
-              disabled={isGenerating !== null}
-            >
-              <span>{isGenerating === "revenue" ? "Generating PDF..." : "Generate Statement"}</span>
-              {isGenerating === "revenue" ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : <FileText className="h-4 w-4 text-slate-400" />}
-            </Button>
-          </CardContent>
-        </Card>
+      {/* ── PDF REPORTS Section ─────────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <FileText className="h-5 w-5 text-indigo-600" />
+          <h2 className="text-base font-bold text-slate-800">PDF Reports</h2>
+          <span className="text-xs text-slate-400 ml-1">— Formatted documents ready to print or share</span>
+        </div>
 
-        {/* Inventory Valuation */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-emerald-600" />
-              Inventory Valuation Report
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Total asset value of stock in warehouse, categorized by fabric type
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="outline" 
-              className="w-full text-xs h-9 justify-between"
-              onClick={handleInventoryValuation}
-              disabled={isGenerating !== null}
-            >
-              <span>{isGenerating === "inventory" ? "Generating PDF..." : "Generate Valuation"}</span>
-              {isGenerating === "inventory" ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : <FileText className="h-4 w-4 text-slate-400" />}
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Revenue Statement PDF */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-indigo-600" />
+                Monthly Revenue Statement
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Detailed breakdown of total revenue, GST 5%, and net profit margins
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full text-xs h-9 justify-between"
+                onClick={handleRevenueStatement}
+                disabled={isLoading}
+                id="btn-revenue-pdf"
+              >
+                <span>{isGenerating === "revenue-pdf" ? "Generating PDF…" : "Download as PDF"}</span>
+                {isGenerating === "revenue-pdf" ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                ) : (
+                  <FileText className="h-4 w-4 text-slate-400" />
+                )}
+              </Button>
+            </CardContent>
+          </Card>
 
-        {/* AI Audit */}
-        <Card className="opacity-60 cursor-not-allowed">
-          <CardHeader>
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-purple-600" />
-              AI Sales Prediction Audit
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Accuracy evaluation report comparing AI predictions against actual sales
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full text-xs h-9 justify-between" disabled>
-              <span>Coming Soon</span>
-              <FileText className="h-4 w-4 text-slate-400" />
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Inventory Valuation PDF */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-emerald-600" />
+                Inventory Valuation Report
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Total asset value of stock in warehouse, categorized by fabric type
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full text-xs h-9 justify-between"
+                onClick={handleInventoryValuation}
+                disabled={isLoading}
+                id="btn-inventory-pdf"
+              >
+                <span>{isGenerating === "inventory-pdf" ? "Generating PDF…" : "Download as PDF"}</span>
+                {isGenerating === "inventory-pdf" ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                ) : (
+                  <FileText className="h-4 w-4 text-slate-400" />
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* AI Audit — Coming Soon */}
+          <Card className="opacity-60 cursor-not-allowed">
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-purple-600" />
+                AI Sales Prediction Audit
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Accuracy evaluation report comparing AI predictions against actual sales
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full text-xs h-9 justify-between" disabled>
+                <span>Coming Soon</span>
+                <FileText className="h-4 w-4 text-slate-400" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Hidden PDF Templates */}
-      <div className="overflow-hidden h-0 w-0 absolute opacity-0 pointer-events-none">
-        <div ref={reportRef} className="w-[800px] bg-white p-10 text-slate-900" style={{ fontFamily: "sans-serif" }}>
-          
-          <div className="border-b-2 border-indigo-600 pb-4 mb-6 flex justify-between items-end">
+      {/* ── CSV EXPORT Section ───────────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+          <h2 className="text-base font-bold text-slate-800">Export Data as CSV</h2>
+          <span className="text-xs text-slate-400 ml-1">— Raw data for Excel / Power BI / Google Sheets</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Sales CSV */}
+          <Card className="border-emerald-100 bg-emerald-50/40">
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-emerald-700" />
+                Sales Transactions
+              </CardTitle>
+              <CardDescription className="text-xs">
+                All invoices with amount, GST, payment mode, customer name, and date
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="w-full text-xs h-9 justify-between bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handleSalesCSV}
+                disabled={isLoading}
+                id="btn-sales-csv"
+              >
+                <span>{isGenerating === "sales-csv" ? "Exporting…" : "Export Sales CSV"}</span>
+                {isGenerating === "sales-csv" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Inventory / Products CSV */}
+          <Card className="border-blue-100 bg-blue-50/40">
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Package className="h-5 w-5 text-blue-700" />
+                Product Inventory
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Full product catalogue with SKU, price, stock quantity, status, and supplier
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="w-full text-xs h-9 justify-between bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleInventoryCSV}
+                disabled={isLoading}
+                id="btn-inventory-csv"
+              >
+                <span>{isGenerating === "inventory-csv" ? "Exporting…" : "Export Inventory CSV"}</span>
+                {isGenerating === "inventory-csv" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Customers CSV */}
+          <Card className="border-violet-100 bg-violet-50/40">
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Users className="h-5 w-5 text-violet-700" />
+                Customer Directory
+              </CardTitle>
+              <CardDescription className="text-xs">
+                All customers with segment, credit limit, outstanding balance, and purchase history
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="w-full text-xs h-9 justify-between bg-violet-600 hover:bg-violet-700 text-white"
+                onClick={handleCustomersCSV}
+                disabled={isLoading}
+                id="btn-customers-csv"
+              >
+                <span>{isGenerating === "customers-csv" ? "Exporting…" : "Export Customers CSV"}</span>
+                {isGenerating === "customers-csv" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── Hidden PDF Template (off-screen, rendered by React, captured by html2canvas) ── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          top: "-9999px",
+          left: "-9999px",
+          width: "800px",
+          zIndex: -1,
+          pointerEvents: "none",
+        }}
+      >
+        <div ref={reportRef} className="bg-white p-10 text-slate-900" style={{ fontFamily: "Arial, sans-serif", width: "800px" }}>
+          {/* Report Header */}
+          <div style={{ borderBottom: "3px solid #4F46E5", paddingBottom: "16px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
-              <h1 className="text-3xl font-black text-indigo-700 tracking-tight">KS Vision AI</h1>
-              <p className="text-sm text-slate-500 font-medium">AI Textile Sales & Inventory System</p>
+              <h1 style={{ fontSize: "28px", fontWeight: 900, color: "#4338CA", margin: 0 }}>KS Vision AI</h1>
+              <p style={{ fontSize: "13px", color: "#64748B", margin: "4px 0 0" }}>AI Textile Sales &amp; Inventory System</p>
             </div>
-            <div className="text-right">
-              <p className="text-lg font-bold">
-                {reportType === "revenue" ? "Revenue Statement" : 
-                 reportType === "inventory" ? "Inventory Valuation" : "Report"}
+            <div style={{ textAlign: "right" }}>
+              <p style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>
+                {reportType === "revenue" ? "Revenue Statement" : reportType === "inventory" ? "Inventory Valuation" : "Report"}
               </p>
-              <p className="text-xs text-slate-500">Generated: {new Date().toLocaleString()}</p>
+              <p style={{ fontSize: "11px", color: "#94A3B8", margin: "4px 0 0" }}>
+                Generated: {new Date().toLocaleString("en-IN")}
+              </p>
             </div>
           </div>
 
+          {/* Revenue Report Body */}
           {reportType === "revenue" && reportData?.sales && (
             <div>
-              <div className="flex gap-10 mb-8 p-4 bg-slate-50 rounded-lg border border-slate-100">
+              {/* KPI Row */}
+              <div style={{ display: "flex", gap: "32px", marginBottom: "28px", padding: "16px", background: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide font-bold">Total Revenue</p>
-                  <p className="text-2xl font-black text-slate-900">{formatINR(reportData.totalRev)}</p>
+                  <p style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: 0 }}>Total Revenue</p>
+                  <p style={{ fontSize: "22px", fontWeight: 900, color: "#0F172A", margin: "4px 0 0" }}>{formatINR(reportData.totalRev)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide font-bold">Total GST (5%)</p>
-                  <p className="text-2xl font-black text-slate-900">{formatINR(reportData.totalTax)}</p>
+                  <p style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: 0 }}>Total GST</p>
+                  <p style={{ fontSize: "22px", fontWeight: 900, color: "#0F172A", margin: "4px 0 0" }}>{formatINR(reportData.totalTax)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide font-bold">Invoices</p>
-                  <p className="text-2xl font-black text-slate-900">{reportData.sales.length}</p>
+                  <p style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: 0 }}>Net Revenue</p>
+                  <p style={{ fontSize: "22px", fontWeight: 900, color: "#4F46E5", margin: "4px 0 0" }}>{formatINR(reportData.totalRev - reportData.totalTax)}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: 0 }}>Total Invoices</p>
+                  <p style={{ fontSize: "22px", fontWeight: 900, color: "#0F172A", margin: "4px 0 0" }}>{reportData.sales.length}</p>
                 </div>
               </div>
 
-              <table className="w-full text-left text-sm border-collapse">
+              {/* Table */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                 <thead>
-                  <tr className="bg-indigo-50 text-indigo-900 border-b border-indigo-100">
-                    <th className="py-2 px-3 font-bold">Date</th>
-                    <th className="py-2 px-3 font-bold">Invoice #</th>
-                    <th className="py-2 px-3 font-bold">Customer</th>
-                    <th className="py-2 px-3 font-bold text-right">Tax (INR)</th>
-                    <th className="py-2 px-3 font-bold text-right">Total (INR)</th>
+                  <tr style={{ background: "#EEF2FF", color: "#312E81" }}>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #C7D2FE" }}>Date</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #C7D2FE" }}>Invoice #</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #C7D2FE" }}>Customer</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #C7D2FE" }}>Mode</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", borderBottom: "2px solid #C7D2FE" }}>GST (INR)</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", borderBottom: "2px solid #C7D2FE" }}>Total (INR)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reportData.sales.slice(0, 15).map((sale: SaleTransaction) => (
-                    <tr key={sale.id}>
-                      <td className="py-2 px-3 text-xs">{sale.createdAt.split(" ")[0]}</td>
-                      <td className="py-2 px-3 font-medium">{sale.invoiceNumber}</td>
-                      <td className="py-2 px-3">{sale.customerName}</td>
-                      <td className="py-2 px-3 text-right">{formatINR(sale.taxINR)}</td>
-                      <td className="py-2 px-3 text-right font-bold">{formatINR(sale.totalINR)}</td>
+                <tbody>
+                  {reportData.sales.slice(0, 20).map((sale: SaleTransaction, i: number) => (
+                    <tr key={sale.id} style={{ background: i % 2 === 0 ? "#fff" : "#F8FAFC" }}>
+                      <td style={{ padding: "9px 12px", borderBottom: "1px solid #F1F5F9" }}>{sale.createdAt?.split("T")[0] || sale.createdAt?.split(" ")[0]}</td>
+                      <td style={{ padding: "9px 12px", fontWeight: 600, borderBottom: "1px solid #F1F5F9" }}>{sale.invoiceNumber}</td>
+                      <td style={{ padding: "9px 12px", borderBottom: "1px solid #F1F5F9" }}>{sale.customerName}</td>
+                      <td style={{ padding: "9px 12px", borderBottom: "1px solid #F1F5F9" }}>{sale.paymentMode}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right", borderBottom: "1px solid #F1F5F9" }}>{formatINR(sale.taxINR)}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #F1F5F9" }}>{formatINR(sale.totalINR)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {reportData.sales.length > 15 && (
-                <p className="text-xs text-slate-400 text-center mt-4 italic">
-                  Showing latest 15 records. Full data available in database.
+              {reportData.sales.length > 20 && (
+                <p style={{ fontSize: "11px", color: "#94A3B8", textAlign: "center", marginTop: "12px", fontStyle: "italic" }}>
+                  Showing latest 20 of {reportData.sales.length} invoices. Export CSV for complete data.
                 </p>
               )}
             </div>
           )}
 
+          {/* Inventory Report Body */}
           {reportType === "inventory" && reportData?.products && (
             <div>
-               <div className="flex gap-10 mb-8 p-4 bg-slate-50 rounded-lg border border-slate-100">
+              {/* KPI Row */}
+              <div style={{ display: "flex", gap: "32px", marginBottom: "28px", padding: "16px", background: "#F0FDF4", borderRadius: "8px", border: "1px solid #BBF7D0" }}>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide font-bold">Total Asset Value</p>
-                  <p className="text-2xl font-black text-emerald-700">{formatINR(reportData.totalValue)}</p>
+                  <p style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: 0 }}>Total Asset Value</p>
+                  <p style={{ fontSize: "22px", fontWeight: 900, color: "#15803D", margin: "4px 0 0" }}>{formatINR(reportData.totalValue)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide font-bold">SKU Count</p>
-                  <p className="text-2xl font-black text-slate-900">{reportData.products.length}</p>
+                  <p style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: 0 }}>Total SKUs</p>
+                  <p style={{ fontSize: "22px", fontWeight: 900, color: "#0F172A", margin: "4px 0 0" }}>{reportData.products.length}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: 0 }}>Low / Out of Stock</p>
+                  <p style={{ fontSize: "22px", fontWeight: 900, color: "#DC2626", margin: "4px 0 0" }}>
+                    {reportData.products.filter((p: Product) => p.status === "Low Stock" || p.status === "Out of Stock").length}
+                  </p>
                 </div>
               </div>
 
-              <table className="w-full text-left text-sm border-collapse">
+              {/* Table */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                 <thead>
-                  <tr className="bg-emerald-50 text-emerald-900 border-b border-emerald-100">
-                    <th className="py-2 px-3 font-bold">SKU</th>
-                    <th className="py-2 px-3 font-bold">Product Name</th>
-                    <th className="py-2 px-3 font-bold text-right">Qty</th>
-                    <th className="py-2 px-3 font-bold text-right">Price</th>
-                    <th className="py-2 px-3 font-bold text-right">Value (INR)</th>
+                  <tr style={{ background: "#F0FDF4", color: "#14532D" }}>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #BBF7D0" }}>SKU</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #BBF7D0" }}>Product Name</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #BBF7D0" }}>Category</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", borderBottom: "2px solid #BBF7D0" }}>Qty</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", borderBottom: "2px solid #BBF7D0" }}>Unit Price</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", borderBottom: "2px solid #BBF7D0" }}>Value (INR)</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left", borderBottom: "2px solid #BBF7D0" }}>Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reportData.products.map((product: Product) => (
-                    <tr key={product.id}>
-                      <td className="py-2 px-3 text-xs">{product.sku}</td>
-                      <td className="py-2 px-3 font-medium">{product.name}</td>
-                      <td className="py-2 px-3 text-right">{product.stockQuantity}</td>
-                      <td className="py-2 px-3 text-right">{formatINR(product.unitPrice)}</td>
-                      <td className="py-2 px-3 text-right font-bold text-emerald-700">
+                <tbody>
+                  {reportData.products.map((product: Product, i: number) => (
+                    <tr key={product.id} style={{ background: i % 2 === 0 ? "#fff" : "#F8FAFC" }}>
+                      <td style={{ padding: "9px 12px", fontSize: "11px", borderBottom: "1px solid #F1F5F9" }}>{product.sku}</td>
+                      <td style={{ padding: "9px 12px", fontWeight: 600, borderBottom: "1px solid #F1F5F9" }}>{product.name}</td>
+                      <td style={{ padding: "9px 12px", borderBottom: "1px solid #F1F5F9" }}>{product.category}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right", borderBottom: "1px solid #F1F5F9" }}>{product.stockQuantity}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right", borderBottom: "1px solid #F1F5F9" }}>{formatINR(product.unitPrice)}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: "#15803D", borderBottom: "1px solid #F1F5F9" }}>
                         {formatINR(product.stockQuantity * product.unitPrice)}
+                      </td>
+                      <td style={{ padding: "9px 12px", borderBottom: "1px solid #F1F5F9", color: product.status === "Out of Stock" ? "#DC2626" : product.status === "Low Stock" ? "#D97706" : "#15803D", fontWeight: 600 }}>
+                        {product.status}
                       </td>
                     </tr>
                   ))}
@@ -281,8 +605,9 @@ export function ReportGenerator() {
             </div>
           )}
 
-          <div className="mt-12 text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
-            Generated securely by KS Vision AI System. Confidential Document.
+          {/* Footer */}
+          <div style={{ marginTop: "40px", textAlign: "center", fontSize: "10px", color: "#CBD5E1", borderTop: "1px solid #F1F5F9", paddingTop: "12px" }}>
+            Generated securely by KS Vision AI System. Confidential Business Document. &copy; {new Date().getFullYear()}
           </div>
         </div>
       </div>
