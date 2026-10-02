@@ -42,7 +42,6 @@ export default function LoginPage() {
   // ─── Handlers ──────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    console.log("handleLogin fired", email);
     setError("");
     setIsLoading(true);
 

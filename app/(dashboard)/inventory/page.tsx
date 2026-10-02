@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Boxes, AlertTriangle, RefreshCw, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,10 +24,12 @@ export default async function InventoryPage() {
           </p>
         </div>
 
-        <Button className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
-          <RefreshCw className="h-4 w-4" />
-          <span>Trigger Reorder Order</span>
-        </Button>
+        <Link href="/ai-insights">
+          <Button className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
+            <RefreshCw className="h-4 w-4" />
+            <span>View Reorder Suggestions</span>
+          </Button>
+        </Link>
       </div>
 
       {/* Inventory Table */}
@@ -87,9 +90,11 @@ export default async function InventoryPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
-                        Restock +
-                      </Button>
+                      <Link href="/products">
+                        <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
+                          Restock +
+                        </Button>
+                      </Link>
                     </td>
                   </tr>
                 ))}

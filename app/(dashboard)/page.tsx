@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   IndianRupee,
   ShoppingBag,
@@ -52,10 +53,12 @@ export default async function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="text-xs h-10 gap-1.5 font-semibold">
-            <FileText className="h-4 w-4 text-slate-500" />
-            <span>Export Report</span>
-          </Button>
+          <Link href="/reports">
+            <Button variant="outline" className="text-xs h-10 gap-1.5 font-semibold">
+              <FileText className="h-4 w-4 text-slate-500" />
+              <span>Export Report</span>
+            </Button>
+          </Link>
           <SaleModal />
         </div>
       </div>

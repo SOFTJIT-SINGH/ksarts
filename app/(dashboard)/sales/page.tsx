@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Search, FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,10 +65,12 @@ export default async function SalesPage() {
                       {formatINR(sale.totalINR)}
                     </td>
                     <td className="px-4 py-3.5 text-center">
-                      <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-slate-600">
-                        <Download className="h-3.5 w-3.5" />
-                        <span>PDF</span>
-                      </Button>
+                      <Link href="/reports">
+                        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-slate-600">
+                          <Download className="h-3.5 w-3.5" />
+                          <span>PDF</span>
+                        </Button>
+                      </Link>
                     </td>
                   </tr>
                 ))}

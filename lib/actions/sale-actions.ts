@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 import { SaleTransaction } from "@/lib/types";
 
 /**
@@ -71,6 +72,18 @@ export async function createSaleAction(saleData: any): Promise<{ success: boolea
       return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
     }
 
+    // Derive salesPerson from authenticated session (server-side, not trusted from client)
+    let salesPerson = saleData.salesPerson || "Khushi Soni";
+    try {
+      const serverClient = await createClient();
+      const { data: { user } } = await serverClient.auth.getUser();
+      if (user?.user_metadata?.full_name) {
+        salesPerson = user.user_metadata.full_name;
+      }
+    } catch {
+      // fallback to whatever was passed
+    }
+
     // 1. Insert into Sales
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     const { data: insertedSale, error: saleError } = await supabase
@@ -86,7 +99,7 @@ export async function createSaleAction(saleData: any): Promise<{ success: boolea
           totalINR: saleData.totalINR,
           paymentMode: saleData.paymentMode,
           paymentStatus: saleData.paymentStatus,
-          salesPerson: saleData.salesPerson,
+          salesPerson,
         }
       ])
       .select()
