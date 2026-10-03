@@ -7,6 +7,7 @@ import { MOCK_SALES } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
 import { SaleModal } from "@/components/sales/sale-modal";
 import { getSalesAction } from "@/lib/actions/sale-actions";
+import { InvoicePdfButton } from "@/components/sales/invoice-pdf-button";
 
 export default async function SalesPage() {
   const res = await getSalesAction();
@@ -65,12 +66,7 @@ export default async function SalesPage() {
                       {formatINR(sale.totalINR)}
                     </td>
                     <td className="px-4 py-3.5 text-center">
-                      <Link href="/reports">
-                        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-slate-600">
-                          <Download className="h-3.5 w-3.5" />
-                          <span>PDF</span>
-                        </Button>
-                      </Link>
+                      <InvoicePdfButton sale={sale} />
                     </td>
                   </tr>
                 ))}
