@@ -20,6 +20,7 @@ import {
 import { formatINR } from "@/lib/utils";
 import { getSalesForecastFromAI, getBundleRecommendationsFromAI, getDemandForecastFromAI } from "@/lib/services/ai-service";
 import { BundleRecommendation } from "@/lib/types";
+import { RetrainButton } from "@/components/dashboard/retrain-button";
 
 export default async function AIInsightsPage() {
   let salesData = { overview: MOCK_AI_OVERVIEW, forecast: MOCK_SALES_FORECAST };
@@ -72,13 +73,7 @@ export default async function AIInsightsPage() {
           </p>
         </div>
 
-        <Button
-          className="text-xs h-10 gap-1.5 font-semibold bg-purple-600 hover:bg-purple-700 text-white"
-          onClick={() => alert("Model retraining runs server-side via the Flask ML service.\n\nTo retrain:\n1. cd flask_service\n2. python train_models.py\n3. Restart Flask: python app.py\n\nNew predictions will appear automatically.")}
-        >
-          <Zap className="h-4 w-4" />
-          <span>Re-run AI Model Training</span>
-        </Button>
+        <RetrainButton />
       </div>
 
       {/* Grid of 4 Core AI Modules */}
