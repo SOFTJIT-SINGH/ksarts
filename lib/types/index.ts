@@ -6,7 +6,8 @@ export type ProductCategory =
   | "Dress Material"
   | "Suiting & Shirting"
   | "Linen Collection"
-  | "Designer Lehengas";
+  | "Designer Lehengas"
+  | "Dupattas & Stoles";
 
 export interface Product {
   id: string;

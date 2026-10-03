@@ -1,8 +1,3 @@
-"""
-Flask REST API Microservice — Textile Sales & Inventory Prediction System
-Provides endpoints for Next.js DSS Frontend, integrated with live Supabase data.
-"""
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os

@@ -80,6 +80,9 @@ export async function seedDatabaseAction(): Promise<{
       customerName: s.customerName,
       subtotalINR: s.subtotalINR,
       taxINR: s.taxINR,
+      cgstINR: s.cgstINR || 0,
+      sgstINR: s.sgstINR || 0,
+      igstINR: s.igstINR || 0,
       discountINR: s.discountINR,
       totalINR: s.totalINR,
       paymentMode: s.paymentMode,
@@ -94,16 +97,20 @@ export async function seedDatabaseAction(): Promise<{
 
     if (sError || !insertedSales) throw sError || new Error("Failed to insert sales");
 
-    // 5. Insert Sale Items
+    // 5. Insert Sale Items — map mock product index to real inserted product IDs
     const saleItemsToInsert = [];
     for (let i = 0; i < MOCK_SALES.length; i++) {
       const mockSale = MOCK_SALES[i];
       const saleId = insertedSales[i].id;
       
       for (const item of mockSale.items) {
+        // Resolve mock "prod-001" → index 0, "prod-012" → index 11
+        const mockNum = parseInt(item.productId.replace(/\D/g, ""), 10) - 1;
+        const resolvedProductId = insertedProducts[Math.min(mockNum, insertedProducts.length - 1)].id;
+
         saleItemsToInsert.push({
           saleId: saleId,
-          productId: insertedProducts[0].id, // fallback to first product
+          productId: resolvedProductId,
           productName: item.productName,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
