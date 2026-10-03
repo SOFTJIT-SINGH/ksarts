@@ -19,10 +19,11 @@ import {
 import {
   loginAction,
   signupAction,
+  resetPasswordAction,
 } from "@/lib/actions/auth-actions";
 import type { UserRole } from "@/lib/types";
 
-type AuthTab = "login" | "signup";
+type AuthTab = "login" | "signup" | "forgotPassword";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,12 +38,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   // ─── Handlers ──────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     setIsLoading(true);
 
     const result = await loginAction(email, password);
@@ -58,6 +61,7 @@ export default function LoginPage() {
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     setIsLoading(true);
 
     if (password.length < 6) {
@@ -78,6 +82,27 @@ export default function LoginPage() {
       router.push("/");
     } else {
       setError(result.error || "Signup failed.");
+    }
+    setIsLoading(false);
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSuccessMsg("");
+    setIsLoading(true);
+
+    if (!email) {
+      setError("Please enter your email address.");
+      setIsLoading(false);
+      return;
+    }
+
+    const result = await resetPasswordAction(email);
+    if (result.success) {
+      setSuccessMsg("Password reset instructions have been sent to your email.");
+    } else {
+      setError(result.error || "Failed to send password reset email.");
     }
     setIsLoading(false);
   }
@@ -134,11 +159,17 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Error Message */}
+        {/* Error / Success Messages */}
         {error && (
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2.5 text-sm text-green-700">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span>{successMsg}</span>
           </div>
         )}
 
@@ -196,6 +227,19 @@ export default function LoginPage() {
                   ) : (
                     <Eye className="h-4 w-4" />
                   )}
+                </button>
+              </div>
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("forgotPassword");
+                    setError("");
+                    setSuccessMsg("");
+                  }}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                >
+                  Forgot Password?
                 </button>
               </div>
             </div>
@@ -366,6 +410,63 @@ export default function LoginPage() {
               )}
               Create Account
             </button>
+          </form>
+        )}
+
+        {/* ── Forgot Password Form ────────────────────────────────── */}
+        {activeTab === "forgotPassword" && (
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <p className="text-sm text-slate-600 mb-4 text-center">
+              Enter your email address and we&apos;ll send you instructions to reset your password.
+            </p>
+            {/* Email */}
+            <div>
+              <label
+                htmlFor="reset-email"
+                className="mb-1.5 block text-xs font-semibold text-slate-700"
+              >
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="reset-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="khushi@ksarts.in"
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4" />
+              )}
+              Send Reset Link
+            </button>
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("login");
+                  setError("");
+                  setSuccessMsg("");
+                }}
+                className="text-xs font-medium text-slate-500 hover:text-slate-700 cursor-pointer"
+              >
+                Back to Sign In
+              </button>
+            </div>
           </form>
         )}
       </div>

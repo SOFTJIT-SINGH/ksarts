@@ -166,7 +166,7 @@ export function ReportGenerator() {
       if (res.success && res.data && res.data.length > 0) {
         const header = [
           "Invoice #", "Date", "Customer", "Payment Mode", "Payment Status",
-          "Subtotal (INR)", "Tax (INR)", "Discount (INR)", "Total (INR)", "Sales Person",
+          "Subtotal (INR)", "Tax (INR)", "CGST (INR)", "SGST (INR)", "IGST (INR)", "Discount (INR)", "Total (INR)", "Sales Person",
         ];
         const rows = res.data.map((s: SaleTransaction) => [
           s.invoiceNumber,
@@ -176,6 +176,9 @@ export function ReportGenerator() {
           s.paymentStatus,
           s.subtotalINR,
           s.taxINR,
+          s.cgstINR || 0,
+          s.sgstINR || 0,
+          s.igstINR || 0,
           s.discountINR,
           s.totalINR,
           s.salesPerson,

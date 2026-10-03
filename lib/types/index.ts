@@ -61,6 +61,9 @@ export interface SaleTransaction {
   items: SaleItem[];
   subtotalINR: number;
   taxINR: number;
+  cgstINR?: number;
+  sgstINR?: number;
+  igstINR?: number;
   discountINR: number;
   totalINR: number;
   paymentMode: "Cash" | "UPI" | "Bank Transfer" | "Credit Line";

@@ -108,6 +108,22 @@ export async function logoutAction(): Promise<{ success: boolean; error?: string
   }
 }
 
+// ─── Reset Password Action ─────────────────────────────────────────
+export async function resetPasswordAction(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password`,
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Password reset failed." };
+  }
+}
+
 // ─── Get Current User Action ───────────────────────────────────────
 export async function getCurrentUserAction(): Promise<AuthResult> {
   try {

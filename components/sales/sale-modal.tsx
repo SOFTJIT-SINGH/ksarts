@@ -25,6 +25,7 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [paymentMode, setPaymentMode] = useState("Bank Transfer");
   const [paymentStatus, setPaymentStatus] = useState("Paid");
+  const [isInterState, setIsInterState] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
 
   const [items, setItems] = useState<
@@ -84,23 +85,42 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
   };
 
   // Calculations
-  const { subtotal, tax, discount, total } = useMemo(() => {
+  const { subtotal, tax, cgst, sgst, igst, discount, total } = useMemo(() => {
     let sub = 0;
     let taxAmt = 0;
+    let cgstAmt = 0;
+    let sgstAmt = 0;
+    let igstAmt = 0;
 
     items.forEach((item) => {
       const lineTotal = item.quantity * item.unitPrice;
       sub += lineTotal;
       // Indian Textile GST Rule: 5% if < 1000, 12% if >= 1000
       const gstRate = item.unitPrice < 1000 ? 0.05 : 0.12;
-      taxAmt += lineTotal * gstRate;
+      const lineTax = lineTotal * gstRate;
+      taxAmt += lineTax;
+
+      if (isInterState) {
+        igstAmt += lineTax;
+      } else {
+        cgstAmt += lineTax / 2;
+        sgstAmt += lineTax / 2;
+      }
     });
 
     const discAmt = sub * (discountPercent / 100);
     const finalTotal = sub + taxAmt - discAmt;
 
-    return { subtotal: sub, tax: taxAmt, discount: discAmt, total: finalTotal };
-  }, [items, discountPercent]);
+    return { 
+      subtotal: sub, 
+      tax: taxAmt, 
+      cgst: cgstAmt,
+      sgst: sgstAmt,
+      igst: igstAmt,
+      discount: discAmt, 
+      total: finalTotal 
+    };
+  }, [items, discountPercent, isInterState]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +147,9 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
       })),
       subtotalINR: subtotal,
       taxINR: tax,
+      cgstINR: cgst,
+      sgstINR: sgst,
+      igstINR: igst,
       discountINR: discount,
       totalINR: total,
       paymentMode,
@@ -142,6 +165,7 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
         setItems([{ productId: "", quantity: 1, unitPrice: 0, productName: "" }]);
         setSelectedCustomerId("");
         setDiscountPercent(0);
+        setIsInterState(false);
         if (onSuccess) onSuccess();
       } else {
         setError(res.error || "Failed to create invoice");
@@ -199,7 +223,7 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
                 )}
 
                 {/* Customer & Payment Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700">Customer / Wholesaler</label>
                     <select
@@ -239,6 +263,17 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
                       <option value="Paid">Paid</option>
                       <option value="Pending">Pending</option>
                       <option value="Partially Paid">Partially Paid</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">GST Type (State)</label>
+                    <select
+                      value={isInterState ? "inter" : "intra"}
+                      onChange={(e) => setIsInterState(e.target.value === "inter")}
+                      className="w-full h-9 rounded-md border border-slate-200 px-2 text-xs focus:border-indigo-500 focus:outline-hidden"
+                    >
+                      <option value="intra">Intra-state (CGST + SGST)</option>
+                      <option value="inter">Inter-state (IGST)</option>
                     </select>
                   </div>
                 </div>
@@ -332,10 +367,23 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
                       <span>Subtotal:</span>
                       <span className="font-medium">₹{subtotal.toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="flex justify-between text-slate-600">
-                      <span>GST (5% or 12%):</span>
-                      <span className="font-medium">+ ₹{tax.toLocaleString('en-IN')}</span>
-                    </div>
+                    {isInterState ? (
+                      <div className="flex justify-between text-slate-600">
+                        <span>IGST:</span>
+                        <span className="font-medium">+ ₹{igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-slate-600">
+                          <span>CGST:</span>
+                          <span className="font-medium">+ ₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-600">
+                          <span>SGST:</span>
+                          <span className="font-medium">+ ₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </>
+                    )}
                     {discountPercent > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span>Discount ({discountPercent}%):</span>
