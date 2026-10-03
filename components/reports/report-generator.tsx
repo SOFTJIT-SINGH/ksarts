@@ -76,6 +76,27 @@ export function ReportGenerator() {
           useCORS: true,
           backgroundColor: "#ffffff",
           logging: false,
+          // Fix: override all computed oklch colors (from Tailwind v4) with safe rgb equivalents
+          onclone: (_doc: Document, el: HTMLElement) => {
+            el.querySelectorAll("*").forEach((node) => {
+              if (node instanceof HTMLElement) {
+                const computed = window.getComputedStyle(node);
+                const bg = computed.backgroundColor;
+                const color = computed.color;
+                const border = computed.borderColor;
+                // Only override oklch-based values; fallback to safe hex defaults
+                if (bg && (bg.startsWith("oklch") || bg.startsWith("lab") || bg.startsWith("lch"))) {
+                  node.style.backgroundColor = "#ffffff";
+                }
+                if (color && (color.startsWith("oklch") || color.startsWith("lab") || color.startsWith("lch"))) {
+                  node.style.color = "#0f172a";
+                }
+                if (border && (border.startsWith("oklch") || border.startsWith("lab") || border.startsWith("lch"))) {
+                  node.style.borderColor = "#e2e8f0";
+                }
+              }
+            });
+          },
         });
         const imgData = canvas.toDataURL("image/png");
 
@@ -480,7 +501,7 @@ export function ReportGenerator() {
           pointerEvents: "none",
         }}
       >
-        <div ref={reportRef} className="bg-white p-10 text-slate-900" style={{ fontFamily: "Arial, sans-serif", width: "800px" }}>
+        <div ref={reportRef} style={{ fontFamily: "Arial, sans-serif", width: "800px", backgroundColor: "#ffffff", color: "#0f172a", padding: "40px" }}>
           {/* Report Header */}
           <div style={{ borderBottom: "3px solid #4F46E5", paddingBottom: "16px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
