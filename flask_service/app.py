@@ -15,7 +15,7 @@ from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import apriori, association_rules
 
 # Load env variables from parent directory
-load_dotenv(os.path.join(os.path.dirname(__dirname__), '.env'))
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
 app = Flask(__name__)
 CORS(app)
