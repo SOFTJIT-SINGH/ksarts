@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { MOCK_PRODUCTS } from "@/lib/mock-data/textile-data";
 
 import { getProductsAction } from "@/lib/actions/product-actions";
+import { RestockModal } from "@/components/inventory/restock-modal";
 
 export default async function InventoryPage() {
   const res = await getProductsAction();
@@ -90,11 +91,7 @@ export default async function InventoryPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <Link href="/products">
-                        <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
-                          Restock +
-                        </Button>
-                      </Link>
+                      <RestockModal product={product} />
                     </td>
                   </tr>
                 ))}

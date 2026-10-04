@@ -142,3 +142,51 @@ export async function createProductAction(formData: FormData): Promise<{ success
     return { success: false, error: error.message || "Failed to create product" };
   }
 }
+
+/**
+ * Updates a product's stock quantity (Restock)
+ */
+export async function updateProductStockAction(id: string, additionalQuantity: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
+    }
+
+    // First fetch current product to calculate new status
+    const { data: currentProduct, error: fetchError } = await supabase
+      .from("products")
+      .select("stockQuantity, reorderLevel")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !currentProduct) throw fetchError || new Error("Product not found");
+
+    const newQuantity = currentProduct.stockQuantity + additionalQuantity;
+    let status: Product["status"] = "In Stock";
+    
+    if (newQuantity === 0) {
+      status = "Out of Stock";
+    } else if (newQuantity <= currentProduct.reorderLevel) {
+      status = "Low Stock";
+    }
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        stockQuantity: newQuantity,
+        status: status
+      })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    revalidatePath("/inventory");
+    revalidatePath("/products");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating stock:", error);
+    return { success: false, error: error.message || "Failed to update stock" };
+  }
+}
