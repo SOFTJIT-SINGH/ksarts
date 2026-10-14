@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Activity, Database, FlaskConical, RefreshCw, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Activity, Database, FlaskConical, Play, Square, RefreshCw, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getSystemHealthAction, type SystemHealthReport, type MlModelStatus } from "@/lib/actions/system-actions";
+import { startFlaskAction, stopFlaskAction } from "@/lib/actions/flask-control-actions";
 
 // LEARNING NOTE: Client component for live status
 //   what:     Renders the health report from the server action and lets the user re-run it
@@ -49,6 +50,8 @@ function StatusSkeleton() {
 export function SystemStatusCard() {
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<SystemHealthReport | null>(null);
+  const [flaskBusy, setFlaskBusy] = useState<"start" | "stop" | null>(null);
+  const [flaskMsg, setFlaskMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -110,6 +113,20 @@ export function SystemStatusCard() {
       clearInterval(id);
     };
   }, []);
+
+  const controlFlask = async (action: "start" | "stop") => {
+    setFlaskBusy(action);
+    setFlaskMsg(null);
+    try {
+      const res = action === "start" ? await startFlaskAction() : await stopFlaskAction();
+      setFlaskMsg({ ok: res.success, text: res.success ? res.message || "Done." : res.error || "Failed." });
+      await refresh();
+    } catch (err: any) {
+      setFlaskMsg({ ok: false, text: err.message || "Failed." });
+    } finally {
+      setFlaskBusy(null);
+    }
+  };
 
   const mlModels = report?.ml.models;
 
@@ -221,6 +238,36 @@ export function SystemStatusCard() {
                   ))}
                 {!mlModels && <span className="text-[11px] text-slate-400">Models not loaded (run train_models.py)</span>}
               </div>
+
+              {report.ml.canControl && (
+                <div className="mt-3 space-y-2">
+                  {report.ml.connected ? (
+                    <Button
+                      onClick={() => controlFlask("stop")}
+                      disabled={flaskBusy !== null}
+                      variant="outline"
+                      className="h-9 min-h-9 w-full gap-1.5 text-xs font-semibold text-rose-700 border-rose-200 hover:bg-rose-50"
+                    >
+                      {flaskBusy === "stop" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}
+                      {flaskBusy === "stop" ? "Stopping..." : "Stop Flask"}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => controlFlask("start")}
+                      disabled={flaskBusy !== null}
+                      className="h-9 min-h-9 w-full gap-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      {flaskBusy === "start" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      {flaskBusy === "start" ? "Starting (up to 25s)..." : "Start Flask"}
+                    </Button>
+                  )}
+                  {flaskMsg && (
+                    <p className={`whitespace-pre-wrap text-[11px] leading-snug ${flaskMsg.ok ? "text-emerald-700" : "text-rose-600"}`}>
+                      {flaskMsg.text}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Supabase Auth tile */}

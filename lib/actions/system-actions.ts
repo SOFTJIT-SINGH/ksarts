@@ -34,6 +34,8 @@ export interface SystemHealthReport {
     models?: MlModelStatus;
     supabaseConnected?: boolean;
     error?: string;
+    /** true when this server can launch/stop Flask (local machine, not Vercel) */
+    canControl?: boolean;
   };
 }
 
@@ -94,6 +96,7 @@ export async function getSystemHealthAction(): Promise<SystemHealthReport> {
   const mlState: SystemHealthReport["ml"] = {
     connected: false,
     url: FLASK_AI_SERVICE_URL,
+    canControl: process.env.NODE_ENV !== "production" || process.env.ALLOW_FLASK_LAUNCH === "true",
   };
 
   try {
