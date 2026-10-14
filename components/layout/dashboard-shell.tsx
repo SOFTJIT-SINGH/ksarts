@@ -25,7 +25,7 @@ export function DashboardShell({ children, authUser }: DashboardShellProps) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
+    <div className="flex h-screen overflow-hidden bg-slate-100 text-slate-900">
       {/* Sidebar Navigation */}
       <Sidebar
         userRole={authUser.role}

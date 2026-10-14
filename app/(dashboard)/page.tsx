@@ -15,13 +15,10 @@ import { KPICard } from "@/components/dashboard/kpi-card";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { InventoryAlert } from "@/components/dashboard/inventory-alert";
 import { AITeaser } from "@/components/dashboard/ai-teaser";
-import {
-  MOCK_PRODUCTS,
-  MOCK_SALES,
-  MOCK_AI_OVERVIEW,
-  MOCK_SALES_FORECAST,
-} from "@/lib/mock-data/textile-data";
+import { MOCK_PRODUCTS, MOCK_SALES } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
+import { getSalesForecastFromAI } from "@/lib/services/ai-service";
+import type { SalesForecastPoint } from "@/lib/types";
 
 import { SaleModal } from "@/components/sales/sale-modal";
 import { getProductsAction } from "@/lib/actions/product-actions";
@@ -29,15 +26,50 @@ import { getSalesAction } from "@/lib/actions/sale-actions";
 
 export default async function DashboardPage() {
   // Fetch live data
-  const [productsRes, salesRes] = await Promise.all([
+  const [productsRes, salesRes, ai] = await Promise.all([
     getProductsAction(),
-    getSalesAction()
+    getSalesAction(),
+    getSalesForecastFromAI(),
   ]);
 
   const products = productsRes.success && productsRes.data && productsRes.data.length > 0 ? productsRes.data : MOCK_PRODUCTS;
   const sales = salesRes.success && salesRes.data && salesRes.data.length > 0 ? salesRes.data : MOCK_SALES;
 
   const totalRevenue = sales.reduce((acc, sale) => acc + sale.totalINR, 0);
+
+  // ---- Real month-by-month revenue (createdAt is "YYYY-MM-DD HH:mm") ----
+  const monthlyTotals = new Map<string, number>();
+  for (const sale of sales) {
+    const key = sale.createdAt.substring(0, 7);
+    monthlyTotals.set(key, (monthlyTotals.get(key) || 0) + sale.totalINR);
+  }
+  const monthKeys = Array.from(monthlyTotals.keys()).sort();
+  const monthLabel = (key: string) =>
+    new Date(`${key}-01T00:00:00`).toLocaleString("en-IN", { month: "short", year: "2-digit" });
+
+  const latestKey = monthKeys[monthKeys.length - 1];
+  const prevKey = monthKeys[monthKeys.length - 2];
+  const latestRevenue = latestKey ? monthlyTotals.get(latestKey) || 0 : 0;
+  const prevRevenue = prevKey ? monthlyTotals.get(prevKey) || 0 : 0;
+  const revenueChange = prevRevenue > 0 ? Number((((latestRevenue - prevRevenue) / prevRevenue) * 100).toFixed(1)) : undefined;
+
+  // Chart: real actuals + the AI forecast for next month (falls back to the sample series if <2 months of data)
+  let chartData: SalesForecastPoint[] = ai.forecast;
+  if (monthKeys.length >= 2) {
+    chartData = monthKeys.map((key, i) => ({
+      month: monthLabel(key),
+      actualSalesINR: monthlyTotals.get(key) || 0,
+      // join the dashed forecast line to the last real month
+      predictedSalesINR: i === monthKeys.length - 1 ? monthlyTotals.get(key) || 0 : (undefined as unknown as number),
+    }));
+    chartData.push({
+      month: "Next (AI)",
+      actualSalesINR: undefined as unknown as number,
+      predictedSalesINR: ai.overview.predictedNextMonthSalesINR,
+    });
+  }
+
+  const alertCount = products.filter((p) => p.status !== "In Stock").length;
 
   return (
     <div className="space-y-6">
@@ -66,19 +98,21 @@ export default async function DashboardPage() {
       {/* KPI Overview Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          title="July Sales Revenue"
+          title="Total Sales Revenue"
           value={formatINR(totalRevenue)}
-          change={12.5}
-          changeLabel="vs June (₹1.52M)"
+          change={revenueChange}
+          changeLabel={
+            revenueChange !== undefined && latestKey && prevKey
+              ? `${monthLabel(latestKey)} vs ${monthLabel(prevKey)}`
+              : undefined
+          }
           icon={IndianRupee}
           iconBgColor="bg-indigo-50"
           iconColor="text-indigo-600"
         />
         <KPICard
-          title="Total Orders Delivered"
+          title="Total Invoices"
           value={sales.length.toString()}
-          change={8.4}
-          changeLabel="vs last month"
           icon={ShoppingBag}
           iconBgColor="bg-emerald-50"
           iconColor="text-emerald-600"
@@ -92,9 +126,7 @@ export default async function DashboardPage() {
         />
         <KPICard
           title="Stock Alerts"
-          value={`${products.filter(p => p.status !== "In Stock").length} Items`}
-          change={-25}
-          changeLabel="improved stockout rate"
+          value={`${alertCount} Items`}
           icon={AlertCircle}
           iconBgColor="bg-amber-50"
           iconColor="text-amber-600"
@@ -102,11 +134,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* AI Intelligence Teaser Banner */}
-      <AITeaser overview={MOCK_AI_OVERVIEW} />
+      <AITeaser overview={ai.overview} />
 
       {/* Main Analytics Grid (Sales Area Chart + Inventory Alert List) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <SalesChart data={MOCK_SALES_FORECAST} />
+        <SalesChart data={chartData} />
         <InventoryAlert products={products} />
       </div>
 
@@ -116,13 +148,15 @@ export default async function DashboardPage() {
           <div>
             <CardTitle className="text-lg font-bold">Recent Wholesale Sales Invoices</CardTitle>
             <CardDescription>
-              Latest billing transactions across Surat, Jaipur, and Delhi clients
+              Latest billing transactions across your wholesale and retail clients
             </CardDescription>
           </div>
-          <Button variant="ghost" className="text-xs font-semibold text-indigo-600 gap-1">
-            <span>View All Invoices</span>
-            <ArrowUpRight className="h-4 w-4" />
-          </Button>
+          <Link href="/sales">
+            <Button variant="ghost" className="text-xs font-semibold text-indigo-600 gap-1">
+              <span>View All Invoices</span>
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

@@ -99,7 +99,7 @@ export function ReportGenerator() {
             });
           },
         });
-        const imgData = canvas.toDataURL("image/png");
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
 
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -108,16 +108,16 @@ export function ReportGenerator() {
         // If content overflows one A4 page, add multiple pages
         const pageHeight = pdf.internal.pageSize.getHeight();
         if (pdfHeight <= pageHeight) {
-          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+          pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
         } else {
           let heightLeft = pdfHeight;
           let position = 0;
-          pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+          pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, pdfHeight);
           heightLeft -= pageHeight;
           while (heightLeft > 0) {
             position -= pageHeight;
             pdf.addPage();
-            pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+            pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, pdfHeight);
             heightLeft -= pageHeight;
           }
         }
@@ -135,7 +135,6 @@ export function ReportGenerator() {
     });
 
     return () => cancelAnimationFrame(rafId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingPDF, reportData]);
 
   // ── PDF Handlers ─────────────────────────────────────────────────────────────

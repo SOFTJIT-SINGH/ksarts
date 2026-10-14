@@ -5,6 +5,8 @@ import { Plus, Loader2, X, FileText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Customer, Product } from "@/lib/types";
 import { createSaleAction } from "@/lib/actions/sale-actions";
+import { getGstRate } from "@/lib/pricing";
+import { formatINR } from "@/lib/utils";
 import { getCustomersAction } from "@/lib/actions/customer-actions";
 import { getProductsAction } from "@/lib/actions/product-actions";
 
@@ -27,6 +29,7 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
   const [paymentStatus, setPaymentStatus] = useState("Paid");
   const [isInterState, setIsInterState] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [amountReceived, setAmountReceived] = useState(0);
 
   const [items, setItems] = useState<
     { productId: string; quantity: number; unitPrice: number; productName: string }[]
@@ -92,12 +95,14 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
     let sgstAmt = 0;
     let igstAmt = 0;
 
+    const discountFactor = 1 - Math.min(100, Math.max(0, discountPercent)) / 100;
+
     items.forEach((item) => {
       const lineTotal = item.quantity * item.unitPrice;
       sub += lineTotal;
-      // Indian Textile GST Rule: 5% if < 1000, 12% if >= 1000
-      const gstRate = item.unitPrice < 1000 ? 0.05 : 0.12;
-      const lineTax = lineTotal * gstRate;
+      // Indian Textile GST Rule: 5% if < 1000, 12% if >= 1000 - charged on the value AFTER discount
+      const gstRate = getGstRate(item.unitPrice);
+      const lineTax = lineTotal * discountFactor * gstRate;
       taxAmt += lineTax;
 
       if (isInterState) {
@@ -122,6 +127,12 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
     };
   }, [items, discountPercent, isInterState]);
 
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+  const unpaidAmount =
+    paymentStatus === "Paid" ? 0 : paymentStatus === "Pending" ? total : Math.max(0, total - amountReceived);
+  const projectedOutstanding = (selectedCustomer?.outstandingBalanceINR ?? 0) + unpaidAmount;
+  const overCreditLimit = !!selectedCustomer && projectedOutstanding > selectedCustomer.creditLimitINR;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomerId) {
@@ -133,10 +144,25 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
       return;
     }
 
+    // Total requested per product must not exceed what is in stock
+    const requested = new Map<string, number>();
+    items.forEach((i) => requested.set(i.productId, (requested.get(i.productId) || 0) + i.quantity));
+    for (const [productId, qty] of requested) {
+      const product = products.find((p) => p.id === productId);
+      if (product && qty > product.stockQuantity) {
+        setError(`Only ${product.stockQuantity} ${product.unitOfMeasure} of "${product.name}" in stock (you entered ${qty}).`);
+        return;
+      }
+    }
+    if (paymentStatus === "Partially Paid" && (amountReceived <= 0 || amountReceived >= total)) {
+      setError("For a partial payment, enter an amount received that is more than 0 and less than the invoice total.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    const customer = customers.find((c) => c.id === selectedCustomerId);
+    const customer = selectedCustomer;
 
     const saleData = {
       customerId: selectedCustomerId,
@@ -154,7 +180,8 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
       totalINR: total,
       paymentMode,
       paymentStatus,
-      salesPerson: "Khushi Soni", // In a real app with Auth, this comes from session
+      amountReceived: paymentStatus === "Partially Paid" ? amountReceived : 0,
+      // salesPerson is resolved server-side from the logged-in user's session
     };
 
     try {
@@ -165,6 +192,8 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
         setItems([{ productId: "", quantity: 1, unitPrice: 0, productName: "" }]);
         setSelectedCustomerId("");
         setDiscountPercent(0);
+        setAmountReceived(0);
+        setPaymentStatus("Paid");
         setIsInterState(false);
         if (onSuccess) onSuccess();
       } else {
@@ -278,6 +307,30 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
                   </div>
                 </div>
 
+                {paymentStatus === "Partially Paid" && (
+                  <div className="max-w-xs space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">Amount Received Now (₹)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={total}
+                      value={amountReceived || ""}
+                      onChange={(e) => setAmountReceived(Number(e.target.value) || 0)}
+                      className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      Balance due on this invoice: {formatINR(Math.max(0, total - amountReceived))}
+                    </p>
+                  </div>
+                )}
+
+                {overCreditLimit && selectedCustomer && (
+                  <div className="p-3 rounded-lg bg-amber-50 text-amber-800 text-xs font-medium border border-amber-200">
+                    Credit warning: {selectedCustomer.businessName} would owe {formatINR(projectedOutstanding)}, above their
+                    limit of {formatINR(selectedCustomer.creditLimitINR)}.
+                  </div>
+                )}
+
                 {/* Line Items */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -310,7 +363,7 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
                                 <option value="">Select Product...</option>
                                 {products.map((p) => (
                                   <option key={p.id} value={p.id}>
-                                    {p.name} ({p.sku}) - ₹{p.unitPrice}
+                                    {p.name} ({p.sku}) - ₹{p.unitPrice} · {p.stockQuantity} {p.unitOfMeasure} left
                                   </option>
                                 ))}
                               </select>
@@ -319,6 +372,7 @@ export function SaleModal({ onSuccess, trigger }: SaleModalProps) {
                               <input
                                 type="number"
                                 min={1}
+                                max={products.find((p) => p.id === item.productId)?.stockQuantity}
                                 value={item.quantity}
                                 onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
                                 className="w-full h-8 rounded-md border border-slate-200 px-2 text-[11px] text-center focus:border-indigo-500 focus:outline-hidden"

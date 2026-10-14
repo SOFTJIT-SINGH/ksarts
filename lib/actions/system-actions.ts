@@ -103,7 +103,7 @@ export async function getSystemHealthAction(): Promise<SystemHealthReport> {
     //   without: every Settings visit could spin forever on a zombie server
     const response = await fetch(`${getFlaskBaseUrl()}/api/health`, {
       cache: "no-store",
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(2500),
     });
 
     if (!response.ok) {
@@ -111,13 +111,23 @@ export async function getSystemHealthAction(): Promise<SystemHealthReport> {
     }
 
     const data = await response.json();
+    // Only count it as our ML service if it answers like the KS Vision Flask app
+    // (guards against some other process answering 200 on the same port).
+    if (data?.status !== "ok" || typeof data?.service !== "string") {
+      throw new Error("Unexpected response from the ML service health endpoint");
+    }
     mlState.connected = true;
     mlState.service = data.service;
     mlState.status = data.status;
     mlState.models = data.models_loaded;
     mlState.supabaseConnected = Boolean(data.supabase_connected);
   } catch (err: any) {
-    mlState.error = err.message || "Flask ML service unreachable";
+    mlState.error =
+      err?.name === "TimeoutError" || err?.name === "AbortError"
+        ? "Flask ML service timed out"
+        : err?.cause?.code === "ECONNREFUSED"
+        ? "Flask ML service is offline (connection refused)"
+        : err.message || "Flask ML service unreachable";
   }
 
   // success=false only when both backends are down — the UI then shows a full-page alert.

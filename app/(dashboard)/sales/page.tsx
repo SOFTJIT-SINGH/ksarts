@@ -1,6 +1,4 @@
-import Link from "next/link";
-import { Search, FileText, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MOCK_SALES } from "@/lib/mock-data/textile-data";
@@ -9,9 +7,23 @@ import { SaleModal } from "@/components/sales/sale-modal";
 import { getSalesAction } from "@/lib/actions/sale-actions";
 import { InvoicePdfButton } from "@/components/sales/invoice-pdf-button";
 
-export default async function SalesPage() {
+export default async function SalesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const res = await getSalesAction();
-  const sales = res.success && res.data && res.data.length > 0 ? res.data : MOCK_SALES;
+  const allSales = res.success && res.data && res.data.length > 0 ? res.data : MOCK_SALES;
+  const needle = (q ?? "").trim().toLowerCase();
+  const sales = needle
+    ? allSales.filter((s) =>
+        [s.invoiceNumber, s.customerName, s.salesPerson, s.paymentMode, s.paymentStatus]
+          .join(" ")
+          .toLowerCase()
+          .includes(needle)
+      )
+    : allSales;
 
   return (
     <div className="space-y-6">
@@ -27,6 +39,21 @@ export default async function SalesPage() {
         </div>
 
         <SaleModal />
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <form method="get" className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Search invoice #, customer, payment status..."
+            className="h-10 w-full rounded-lg border border-slate-200 pl-9 pr-4 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+          />
+        </form>
+        <span className="text-xs text-slate-500">{sales.length} of {allSales.length} invoices</span>
       </div>
 
       {/* Invoices List */}
@@ -70,6 +97,13 @@ export default async function SalesPage() {
                     </td>
                   </tr>
                 ))}
+                {sales.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-400">
+                      No invoices match your search.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

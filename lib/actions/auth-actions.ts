@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { UserRole } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 // ─── Types ─────────────────────────────────────────────────────────
 export interface AuthUser {
@@ -17,6 +18,8 @@ export interface AuthResult {
   success: boolean;
   user?: AuthUser;
   error?: string;
+  /** true when signup worked but the user must confirm their email before signing in */
+  needsEmailConfirmation?: boolean;
 }
 
 // ─── Helper: Extract AuthUser from Supabase user object ────────────
@@ -88,7 +91,11 @@ export async function signupAction(
       return { success: false, error: "Signup failed. Please try again." };
     }
 
-    return { success: true, user: extractAuthUser(data.user) };
+    return {
+      success: true,
+      user: extractAuthUser(data.user),
+      needsEmailConfirmation: !data.session,
+    };
   } catch (err: any) {
     return { success: false, error: err.message || "An unexpected error occurred." };
   }
@@ -112,8 +119,19 @@ export async function logoutAction(): Promise<{ success: boolean; error?: string
 export async function resetPasswordAction(email: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
+
+    // Build the redirect from the real request origin so it works on localhost AND Vercel.
+    // The link lands on /auth/callback, which exchanges the code for a session and then
+    // forwards to /reset-password. (This URL must be in Supabase > Auth > URL Configuration > Redirect URLs.)
+    const h = await headers();
+    const origin =
+      h.get("origin") ||
+      (h.get("host") ? `${h.get("x-forwarded-proto") || "http"}://${h.get("host")}` : null) ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "http://localhost:3000";
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password`,
+      redirectTo: `${origin}/auth/callback?next=/reset-password`,
     });
     if (error) {
       return { success: false, error: error.message };
@@ -121,6 +139,27 @@ export async function resetPasswordAction(email: string): Promise<{ success: boo
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || "Password reset failed." };
+  }
+}
+
+// ─── Update Password Action (used by /reset-password after the email link) ──
+export async function updatePasswordAction(newPassword: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: "Password must be at least 6 characters." };
+    }
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: "Your reset link has expired. Request a new one from the sign-in page." };
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to update password." };
   }
 }
 

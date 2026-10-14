@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth/guards";
 import {
   Sparkles,
   TrendingUp,
@@ -21,9 +22,15 @@ import { formatINR } from "@/lib/utils";
 import { getSalesForecastFromAI, getBundleRecommendationsFromAI, getDemandForecastFromAI } from "@/lib/services/ai-service";
 import { BundleRecommendation } from "@/lib/types";
 import { RetrainButton } from "@/components/dashboard/retrain-button";
+import { getCustomersAction } from "@/lib/actions/customer-actions";
+import { MOCK_CUSTOMERS } from "@/lib/mock-data/textile-data";
 
 export default async function AIInsightsPage() {
-  let salesData = { overview: MOCK_AI_OVERVIEW, forecast: MOCK_SALES_FORECAST };
+  await requireAdmin();
+  let salesData: { overview: typeof MOCK_AI_OVERVIEW; forecast: typeof MOCK_SALES_FORECAST } = {
+    overview: MOCK_AI_OVERVIEW,
+    forecast: MOCK_SALES_FORECAST,
+  };
   let bundlesData: BundleRecommendation[] = [];
   let demandData = MOCK_DEMAND_ITEMS;
   let isLive = false;
@@ -36,8 +43,8 @@ export default async function AIInsightsPage() {
     ]);
     
     if (aiSales) {
-      salesData = aiSales;
-      isLive = true;
+      salesData = { overview: aiSales.overview, forecast: aiSales.forecast };
+      isLive = aiSales.isLive;
     }
     
     if (aiBundles) {
@@ -51,6 +58,19 @@ export default async function AIInsightsPage() {
     console.error("Failed to connect to AI service", error);
   }
 
+  // Real segment mix from the customers table (falls back to sample customers)
+  const custRes = await getCustomersAction();
+  const customers = custRes.success && custRes.data && custRes.data.length > 0 ? custRes.data : MOCK_CUSTOMERS;
+  const pct = (n: number) => (customers.length ? Math.round((n / customers.length) * 100) : 0);
+  const vipPct = pct(customers.filter((c) => c.segment === "VIP Wholesaler").length);
+  const atRiskPct = pct(customers.filter((c) => c.segment === "At-Risk").length);
+  const regularPct = Math.max(0, 100 - vipPct - atRiskPct);
+
+  // Short-range figures derived from the monthly forecast (estimates, not separate models)
+  const nextMonth = salesData.overview.predictedNextMonthSalesINR;
+  const nextWeek = Math.round((nextMonth / 30) * 7);
+  const tomorrow = Math.round(nextMonth / 30);
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -62,7 +82,9 @@ export default async function AIInsightsPage() {
               Machine Learning DSS Core
             </Badge>
             <span className="text-xs text-slate-500 font-medium">
-              Flask Service v1.0 connected ({isLive ? "Live Data" : "Mock Fallback"})
+              {isLive
+                ? "Flask ML service connected (live predictions)"
+                : "Flask ML service offline, showing sample predictions"}
             </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl mt-1">
@@ -97,11 +119,11 @@ export default async function AIInsightsPage() {
             <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-semibold uppercase">Tomorrow</span>
-                <span className="text-sm font-bold text-slate-900">{formatINR(68500)}</span>
+                <span className="text-sm font-bold text-slate-900">{formatINR(tomorrow)}</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-semibold uppercase">Next Week</span>
-                <span className="text-sm font-bold text-slate-900">{formatINR(460000)}</span>
+                <span className="text-sm font-bold text-slate-900">{formatINR(nextWeek)}</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-semibold uppercase">Next Month</span>
@@ -109,7 +131,7 @@ export default async function AIInsightsPage() {
               </div>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Confidence score: <span className="font-bold text-emerald-600">92.4%</span> accuracy on cross-validation testing.
+              Tomorrow / next-week values are the monthly forecast spread evenly across days (estimates).
             </p>
           </CardContent>
         </Card>
@@ -167,15 +189,15 @@ export default async function AIInsightsPage() {
           <CardContent className="space-y-3 pt-1">
             <div className="grid grid-cols-3 gap-2">
               <div className="p-3 bg-purple-50 rounded-lg text-center border border-purple-100">
-                <div className="text-lg font-bold text-purple-700">18%</div>
+                <div className="text-lg font-bold text-purple-700">{vipPct}%</div>
                 <div className="text-[11px] font-semibold text-purple-900 mt-0.5">VIP Wholesalers</div>
               </div>
               <div className="p-3 bg-indigo-50 rounded-lg text-center border border-indigo-100">
-                <div className="text-lg font-bold text-indigo-700">62%</div>
+                <div className="text-lg font-bold text-indigo-700">{regularPct}%</div>
                 <div className="text-[11px] font-semibold text-indigo-900 mt-0.5">Regular Retailers</div>
               </div>
               <div className="p-3 bg-amber-50 rounded-lg text-center border border-amber-100">
-                <div className="text-lg font-bold text-amber-700">20%</div>
+                <div className="text-lg font-bold text-amber-700">{atRiskPct}%</div>
                 <div className="text-[11px] font-semibold text-amber-900 mt-0.5">At-Risk Clients</div>
               </div>
             </div>
@@ -206,7 +228,7 @@ export default async function AIInsightsPage() {
                       {bundle.items.join(" + ")}
                     </div>
                     <Badge variant="outline" className="text-[9px] bg-amber-50 text-amber-700 border-amber-200">
-                      {bundle.confidence * 100}% Conf.
+                      {Math.round(bundle.confidence * 100)}% Conf.
                     </Badge>
                   </div>
                   <p className="text-[11px] text-slate-500">

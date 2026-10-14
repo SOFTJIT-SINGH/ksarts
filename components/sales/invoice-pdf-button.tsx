@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Download, Loader2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/utils";
@@ -8,16 +8,19 @@ import { SaleTransaction } from "@/lib/types";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+// Deterministic dd/mm/yyyy (toLocaleDateString differs between server and browser -> hydration error)
+function formatInvoiceDate(createdAt: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(createdAt);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : createdAt;
+}
+
 export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
 
-  const generatePDF = async () => {
-    setIsGenerating(true);
-    try {
-      if (!invoiceRef.current) return;
+  const renderPdf = async (element: HTMLDivElement) => {
 
-      const canvas = await html2canvas(invoiceRef.current, {
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
@@ -43,20 +46,53 @@ export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
         },
       });
 
-      const imgData = canvas.toDataURL("image/png");
+      // JPEG keeps the file small (PNG at 2x scale produced ~6 MB per invoice)
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      // Invoices with many line items are taller than one A4 page: add pages, shifting the image up
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
       pdf.save(`Invoice_${sale.invoiceNumber}.pdf`);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to generate invoice PDF.");
-    } finally {
-      setIsGenerating(false);
-    }
   };
+
+  // The hidden invoice template is only mounted while generating (not once per table row);
+  // this effect waits for it to paint, then captures it.
+  useEffect(() => {
+    if (!isGenerating) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        if (cancelled || !invoiceRef.current) return;
+        await renderPdf(invoiceRef.current);
+      } catch (err) {
+        console.error(err);
+        alert("Failed to generate invoice PDF.");
+      } finally {
+        if (!cancelled) setIsGenerating(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGenerating]);
+
+  const generatePDF = () => setIsGenerating(true);
 
   return (
     <>
@@ -75,7 +111,8 @@ export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
         <span>PDF</span>
       </Button>
 
-      {/* Hidden Invoice Template (rendered off-screen) */}
+      {/* Hidden Invoice Template (rendered off-screen, only while generating) */}
+      {isGenerating && (
       <div style={{ position: "absolute", top: "-9999px", left: "-9999px" }}>
         <div
           ref={invoiceRef}
@@ -103,7 +140,7 @@ export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
             <div style={{ textAlign: "right" }}>
               <h2 style={{ margin: 0, fontSize: "32px", color: "#e2e8f0", textTransform: "uppercase", fontWeight: 900, letterSpacing: "2px" }}>INVOICE</h2>
               <p style={{ margin: "8px 0 0", fontSize: "14px", fontWeight: "bold" }}>#{sale.invoiceNumber}</p>
-              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>Date: {new Date(sale.createdAt).toLocaleDateString()}</p>
+              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>Date: {formatInvoiceDate(sale.createdAt)}</p>
               <div style={{ marginTop: "8px", display: "inline-block", padding: "4px 8px", background: sale.paymentStatus === "Paid" ? "#dcfce7" : "#fef9c3", color: sale.paymentStatus === "Paid" ? "#166534" : "#854d0e", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
                 {sale.paymentStatus}
               </div>
@@ -139,8 +176,8 @@ export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
                   <tr key={i}>
                     <td style={{ padding: "12px 10px", borderBottom: "1px solid #f1f5f9" }}>{item.productName}</td>
                     <td style={{ padding: "12px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9" }}>{item.quantity}</td>
-                    <td style={{ padding: "12px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9" }}>{item.unitPrice.toLocaleString()}</td>
-                    <td style={{ padding: "12px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9", fontWeight: "bold" }}>{item.totalPrice.toLocaleString()}</td>
+                    <td style={{ padding: "12px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9" }}>{item.unitPrice.toLocaleString("en-IN")}</td>
+                    <td style={{ padding: "12px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9", fontWeight: "bold" }}>{item.totalPrice.toLocaleString("en-IN")}</td>
                   </tr>
                 ))
               ) : (
@@ -203,6 +240,7 @@ export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
           </div>
         </div>
       </div>
+      )}
     </>
   );
 }

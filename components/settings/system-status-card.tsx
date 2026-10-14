@@ -96,8 +96,18 @@ export function SystemStatusCard() {
         }
       }
     })();
+    // Re-probe every 10s (silently, no spinner) so stopping/starting Flask is reflected live.
+    const id = setInterval(async () => {
+      try {
+        const result = await getSystemHealthAction();
+        if (!cancelled) setReport(result);
+      } catch {
+        /* keep the last known report */
+      }
+    }, 10_000);
     return () => {
       cancelled = true;
+      clearInterval(id);
     };
   }, []);
 
@@ -112,7 +122,7 @@ export function SystemStatusCard() {
             Live System Status
           </CardTitle>
           <CardDescription className="text-xs">
-            Real-time health of the Supabase database and Flask ML microservice
+            Real-time health of the Supabase database and Flask ML microservice (auto-refreshes every 10s)
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">

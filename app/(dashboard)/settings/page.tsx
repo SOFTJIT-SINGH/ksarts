@@ -1,13 +1,13 @@
+import { requireAdmin } from "@/lib/auth/guards";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SystemStatusCard } from "@/components/settings/system-status-card";
 import { UserManagementCard } from "@/components/settings/user-management";
 import { BusinessProfileCard, QuickActionsCard } from "@/components/settings/business-config";
-import { getCurrentUserAction } from "@/lib/actions/auth-actions";
 
 export default async function SettingsPage() {
-  const { user } = await getCurrentUserAction();
-  const isAdmin = user?.role === "admin";
+  const user = await requireAdmin();
+  const isAdmin = true;
 
   return (
     <div className="space-y-6">

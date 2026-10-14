@@ -83,21 +83,21 @@ export function Sidebar({ userRole, isMobileOpen, onCloseMobile }: SidebarProps)
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 lg:static lg:translate-x-0",
         isMobileOpen ? "translate-x-0" : "-translate-x-full"
       )}
     >
       {/* Brand Header */}
-      <div className="flex h-16 items-center justify-between border-b border-slate-100 px-6">
+      <div className="flex h-16 items-center justify-between border-b border-white/10 px-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-sm">
             <SparkleIcon className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <span className="text-base font-bold tracking-tight text-slate-900 leading-none">
+            <span className="text-base font-bold tracking-tight text-white leading-none">
               KS Vision AI
             </span>
-            <span className="text-[11px] font-medium text-indigo-600 tracking-wide uppercase mt-0.5">
+            <span className="text-[11px] font-medium text-indigo-300 tracking-wide uppercase mt-0.5">
               Textile Intelligence
             </span>
           </div>
@@ -106,7 +106,7 @@ export function Sidebar({ userRole, isMobileOpen, onCloseMobile }: SidebarProps)
 
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        <div className="px-3 pb-2 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
+        <div className="px-3 pb-2 text-[11px] font-semibold text-slate-500 tracking-wider uppercase">
           Navigation
         </div>
 
@@ -122,26 +122,26 @@ export function Sidebar({ userRole, isMobileOpen, onCloseMobile }: SidebarProps)
               className={cn(
                 "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-11",
                 isActive
-                  ? "bg-indigo-50/80 text-indigo-700 font-semibold"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-indigo-600 text-white font-semibold shadow-sm"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
               )}
             >
               <Icon
                 className={cn(
                   "h-5 w-5 shrink-0 transition-colors",
-                  isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                  isActive ? "text-white" : "text-slate-400 group-hover:text-white"
                 )}
               />
               <span className="truncate">{item.title}</span>
 
               {item.badge && (
-                <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                <span className="ml-auto rounded-full bg-indigo-400/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
                   {item.badge}
                 </span>
               )}
 
               {isActive && (
-                <ChevronRight className="ml-auto h-4 w-4 text-indigo-600 shrink-0" />
+                <ChevronRight className="ml-auto h-4 w-4 text-white shrink-0" />
               )}
             </Link>
           );
@@ -149,18 +149,18 @@ export function Sidebar({ userRole, isMobileOpen, onCloseMobile }: SidebarProps)
       </div>
 
       {/* Footer / Role Indicator */}
-      <div className="border-t border-slate-100 p-4">
-        <div className="rounded-xl bg-slate-50 p-3 border border-slate-100 flex items-center justify-between">
+      <div className="border-t border-white/10 p-4">
+        <div className="rounded-xl bg-white/5 p-3 border border-white/10 flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-slate-800">Role Context</span>
-            <span className="text-[11px] text-slate-500 capitalize">{userRole} Account</span>
+            <span className="text-xs font-semibold text-slate-100">Role Context</span>
+            <span className="text-[11px] text-slate-400 capitalize">{userRole} Account</span>
           </div>
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
               userRole === "admin"
-                ? "bg-indigo-100 text-indigo-700"
-                : "bg-emerald-100 text-emerald-700"
+                ? "bg-indigo-500 text-white"
+                : "bg-emerald-500 text-white"
             )}
           >
             {userRole}

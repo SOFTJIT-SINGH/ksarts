@@ -2,6 +2,13 @@ import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+const ACCENT: Record<string, string> = {
+  "text-indigo-600": "border-l-indigo-500",
+  "text-emerald-600": "border-l-emerald-500",
+  "text-purple-600": "border-l-purple-500",
+  "text-amber-600": "border-l-amber-500",
+};
+
 interface KPICardProps {
   title: string;
   value: string;
@@ -24,7 +31,7 @@ export function KPICard({
   const isPositive = change !== undefined && change >= 0;
 
   return (
-    <Card className="hover:border-slate-300">
+    <Card className={cn("border-l-4 hover:border-slate-300", ACCENT[iconColor] ?? "border-l-indigo-500")}>
       <CardContent className="p-5 md:p-6">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">

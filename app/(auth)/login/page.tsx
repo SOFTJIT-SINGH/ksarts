@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   SparkleIcon,
@@ -41,6 +41,15 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Show a message if the user arrives from an expired / invalid email link
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("error") === "link_expired") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError("That password-reset link is invalid or has expired. Request a new one below.");
+      setActiveTab("forgotPassword");
+    }
+  }, []);
+
   // ─── Handlers ──────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +61,7 @@ export default function LoginPage() {
 
     if (result.success && result.user) {
       router.push("/");
+      router.refresh();
     } else {
       setError(result.error || "Login failed.");
     }
@@ -76,10 +86,24 @@ export default function LoginPage() {
       return;
     }
 
-    const result = await signupAction(email, password, fullName, phone);
+    if (!/^[6-9]\d{9}$/.test(phone.replace(/\s|-/g, ""))) {
+      setError("Enter a valid 10-digit Indian mobile number.");
+      setIsLoading(false);
+      return;
+    }
+
+    const result = await signupAction(email, password, fullName, phone.replace(/\s|-/g, ""));
 
     if (result.success && result.user) {
-      router.push("/");
+      if (result.needsEmailConfirmation) {
+        setSuccessMsg("Account created! Check your email and click the confirmation link, then sign in.");
+        setActiveTab("login");
+        setPassword("");
+        setConfirmPassword("");
+      } else {
+        router.push("/");
+        router.refresh();
+      }
     } else {
       setError(result.error || "Signup failed.");
     }

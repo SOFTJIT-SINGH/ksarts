@@ -55,20 +55,17 @@ export function QuickActionsCard() {
         <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Cotton & Basic Fabrics</span>
+              <span className="text-slate-500">Unit price below ₹1,000</span>
               <span className="font-semibold text-slate-700">5%</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Silk & Designer Wear</span>
+              <span className="text-slate-500">Unit price ₹1,000 and above</span>
               <span className="font-semibold text-slate-700">12%</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Luxury / Bridal / Zari</span>
-              <span className="font-semibold text-slate-700">18%</span>
             </div>
           </div>
           <p className="text-[10px] text-slate-400 mt-4 leading-relaxed">
-            Note: GST type (Intra-state CGST/SGST vs Inter-state IGST) is automatically selected during invoice creation based on customer location.
+            Note: GST is charged on the value after discount. Choose Intra-state (CGST + SGST) or Inter-state (IGST)
+            manually in the invoice builder for each sale.
           </p>
         </CardContent>
       </Card>

@@ -3,6 +3,7 @@ import { Boxes, AlertTriangle, RefreshCw, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { formatINR } from "@/lib/utils";
 import { MOCK_PRODUCTS } from "@/lib/mock-data/textile-data";
 
 import { getProductsAction } from "@/lib/actions/product-actions";
@@ -43,6 +44,7 @@ export default async function InventoryPage() {
                   <th className="px-4 py-3">Product Name & SKU</th>
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3 text-center">Current Stock</th>
+                  <th className="px-4 py-3 text-right">Stock Value</th>
                   <th className="px-4 py-3 text-center">Reorder Threshold</th>
                   <th className="px-4 py-3">Supplier Name</th>
                   <th className="px-4 py-3 text-center">Stock Condition</th>
@@ -71,6 +73,9 @@ export default async function InventoryPage() {
                     <td className="px-4 py-3.5 font-semibold text-slate-700">{product.category}</td>
                     <td className="px-4 py-3.5 text-center font-bold text-slate-900">
                       {product.stockQuantity} {product.unitOfMeasure}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-semibold text-slate-700">
+                      {formatINR(product.stockQuantity * product.unitPrice)}
                     </td>
                     <td className="px-4 py-3.5 text-center text-slate-500">
                       {product.reorderLevel} {product.unitOfMeasure}

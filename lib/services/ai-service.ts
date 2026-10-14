@@ -18,15 +18,21 @@ const FLASK_AI_SERVICE_URL =
  * Server-side AI Service wrapper to query Python Flask Machine Learning Microservice.
  * Falls back gracefully to intelligent mock estimates if Flask server is offline.
  */
+const FETCH_OPTS = {
+  method: "GET",
+  headers: { "Content-Type": "application/json" },
+  cache: "no-store",
+} as const;
+
 export async function getSalesForecastFromAI(): Promise<{
   overview: AIPredictionOverview;
   forecast: SalesForecastPoint[];
+  isLive: boolean;
 }> {
   try {
     const response = await fetch(`${FLASK_AI_SERVICE_URL}/sales`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      next: { revalidate: 3600 }, // Cache for 1 hour
+      ...FETCH_OPTS,
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
@@ -38,12 +44,14 @@ export async function getSalesForecastFromAI(): Promise<{
     return {
       overview: data.overview || MOCK_AI_OVERVIEW,
       forecast: data.forecast || MOCK_SALES_FORECAST,
+      isLive: Boolean(data.overview),
     };
   } catch (error) {
     console.warn("Flask AI Service unreachable, using fallback predictions:", error);
     return {
       overview: MOCK_AI_OVERVIEW,
       forecast: MOCK_SALES_FORECAST,
+      isLive: false,
     };
   }
 }
@@ -54,9 +62,8 @@ export async function getSalesForecastFromAI(): Promise<{
 export async function getBundleRecommendationsFromAI(): Promise<BundleRecommendation[]> {
   try {
     const response = await fetch(`${FLASK_AI_SERVICE_URL}/bundles`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      next: { revalidate: 3600 },
+      ...FETCH_OPTS,
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
@@ -77,9 +84,8 @@ export async function getBundleRecommendationsFromAI(): Promise<BundleRecommenda
 export async function getDemandForecastFromAI(): Promise<DemandForecastItem[]> {
   try {
     const response = await fetch(`${FLASK_AI_SERVICE_URL}/demand`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      next: { revalidate: 3600 },
+      ...FETCH_OPTS,
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {

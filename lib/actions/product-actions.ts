@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { friendlyDbError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 import { Product } from "@/lib/types";
+import { computeStockStatus } from "@/lib/pricing";
 
 /**
  * Fetches all products from Supabase PostgreSQL.
@@ -18,10 +20,13 @@ export async function getProductsAction(): Promise<{ success: boolean; data?: Pr
     const { data: rawProducts, error } = await supabase
       .from("products")
       .select("*")
-      .order("created_at", { ascending: false });
+      // Seeded rows share one created_at, so a second sort key keeps row order
+      // stable between refreshes (otherwise a restocked row "jumps" to another product).
+      .order("created_at", { ascending: false })
+      .order("sku", { ascending: true });
 
     if (error) throw error;
-    
+
     if (!rawProducts || rawProducts.length === 0) {
       return { success: true, data: [] };
     }
@@ -41,7 +46,8 @@ export async function getProductsAction(): Promise<{ success: boolean; data?: Pr
       unitOfMeasure: doc.unitOfMeasure,
       reorderLevel: doc.reorderLevel,
       supplierName: doc.supplierName,
-      status: doc.status,
+      // derive from live numbers so a stale/mis-seeded status column can never contradict the stock
+      status: computeStockStatus(Number(doc.stockQuantity), Number(doc.reorderLevel)),
       imageUrl: doc.image_url,
       createdAt: doc.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
     }));
@@ -49,7 +55,7 @@ export async function getProductsAction(): Promise<{ success: boolean; data?: Pr
     return { success: true, data: products };
   } catch (error: any) {
     console.error("Error fetching products from Supabase:", error);
-    return { success: false, error: error.message || "Failed to fetch products" };
+    return { success: false, error: friendlyDbError(error, "Failed to fetch products") };
   }
 }
 
@@ -103,12 +109,20 @@ export async function createProductAction(formData: FormData): Promise<{ success
       }
     }
 
-    let status: Product["status"] = "In Stock";
-    if (stockQuantity === 0) {
-      status = "Out of Stock";
-    } else if (stockQuantity <= reorderLevel) {
-      status = "Low Stock";
+    if (!sku || !name) {
+      return { success: false, error: "SKU and product name are required." };
     }
+    if (unitPrice <= 0 || mrp <= 0) {
+      return { success: false, error: "Wholesale price and MRP must be greater than 0." };
+    }
+    if (mrp < unitPrice) {
+      return { success: false, error: "Retail MRP cannot be lower than the wholesale price." };
+    }
+    if (stockQuantity < 0) {
+      return { success: false, error: "Stock quantity cannot be negative." };
+    }
+
+    const status = computeStockStatus(stockQuantity, reorderLevel);
 
     const { error } = await supabase.from("products").insert([
       {
@@ -130,7 +144,12 @@ export async function createProductAction(formData: FormData): Promise<{ success
       }
     ]);
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === "23505") {
+        return { success: false, error: `SKU "${sku}" already exists. Use a unique SKU code.` };
+      }
+      throw error;
+    }
 
     revalidatePath("/products");
     revalidatePath("/inventory");
@@ -139,42 +158,50 @@ export async function createProductAction(formData: FormData): Promise<{ success
     return { success: true };
   } catch (error: any) {
     console.error("Error creating product:", error);
-    return { success: false, error: error.message || "Failed to create product" };
+    return { success: false, error: friendlyDbError(error, "Failed to create product") };
   }
 }
 
 /**
  * Updates a product's stock quantity (Restock)
  */
-export async function updateProductStockAction(id: string, additionalQuantity: number): Promise<{ success: boolean; error?: string }> {
+export async function updateProductStockAction(
+  id: string,
+  additionalQuantity: number
+): Promise<{ success: boolean; error?: string; newQuantity?: number }> {
   try {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not configured." };
     }
 
-    // First fetch current product to calculate new status
+    const added = Number(additionalQuantity);
+    if (!Number.isInteger(added) || added <= 0) {
+      return { success: false, error: "Restock quantity must be a whole number greater than 0." };
+    }
+
+    // Read the CURRENT stock from the database (never trust the number shown in the UI)
     const { data: currentProduct, error: fetchError } = await supabase
       .from("products")
       .select("stockQuantity, reorderLevel")
       .eq("id", id)
       .single();
 
-    if (fetchError || !currentProduct) throw fetchError || new Error("Product not found");
-
-    const newQuantity = currentProduct.stockQuantity + additionalQuantity;
-    let status: Product["status"] = "In Stock";
-    
-    if (newQuantity === 0) {
-      status = "Out of Stock";
-    } else if (newQuantity <= currentProduct.reorderLevel) {
-      status = "Low Stock";
+    if (fetchError || !currentProduct) {
+      return {
+        success: false,
+        error: "Product not found in the database. Seed the database from Settings first (demo rows cannot be restocked).",
+      };
     }
+
+    // Number() guards against NUMERIC/string values coming back from PostgREST ("45" + 2 = "452")
+    const newQuantity = Number(currentProduct.stockQuantity) + added;
 
     const { error } = await supabase
       .from("products")
       .update({
         stockQuantity: newQuantity,
-        status: status
+        status: computeStockStatus(newQuantity, Number(currentProduct.reorderLevel)),
+        updated_at: new Date().toISOString(),
       })
       .eq("id", id);
 
@@ -184,9 +211,9 @@ export async function updateProductStockAction(id: string, additionalQuantity: n
     revalidatePath("/products");
     revalidatePath("/");
 
-    return { success: true };
+    return { success: true, newQuantity };
   } catch (error: any) {
     console.error("Error updating stock:", error);
-    return { success: false, error: error.message || "Failed to update stock" };
+    return { success: false, error: friendlyDbError(error, "Failed to update stock") };
   }
 }

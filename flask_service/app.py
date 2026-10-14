@@ -25,9 +25,10 @@ HEADERS = {
 }
 
 # Load Models if exist
-SALES_MODEL_PATH = "models/sales_model.joblib"
-KMEANS_MODEL_PATH = "models/customer_kmeans.joblib"
-DEMAND_MODEL_PATH = "models/demand_model.joblib"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SALES_MODEL_PATH = os.path.join(BASE_DIR, "models", "sales_model.joblib")
+KMEANS_MODEL_PATH = os.path.join(BASE_DIR, "models", "customer_kmeans.joblib")
+DEMAND_MODEL_PATH = os.path.join(BASE_DIR, "models", "demand_model.joblib")
 
 sales_model = joblib.load(SALES_MODEL_PATH) if os.path.exists(SALES_MODEL_PATH) else None
 kmeans_model = joblib.load(KMEANS_MODEL_PATH) if os.path.exists(KMEANS_MODEL_PATH) else None
@@ -38,7 +39,7 @@ def get_supabase_data(table, select="*"):
         return []
     try:
         url = f"{SUPABASE_URL}/rest/v1/{table}?select={select}"
-        response = requests.get(url, headers=HEADERS)
+        response = requests.get(url, headers=HEADERS, timeout=10)
         if response.status_code == 200:
             return response.json()
         print(f"Supabase error: {response.text}")
@@ -127,8 +128,8 @@ def predict_sales():
     for _, row in monthly_sales.iterrows():
         forecast.append({
             "month": f"M{int(row['month'])}",
-            "actualSalesINR": row['totalINR'],
-            "predictedSalesINR": row['totalINR'] * 0.95 # Mock historical prediction
+            "actualSalesINR": float(row['totalINR']),
+            "predictedSalesINR": float(row['totalINR']) * 0.95  # Mock historical prediction
         })
         
     forecast.append({
@@ -239,10 +240,17 @@ def segment_customers():
 @app.route("/api/v1/predict/bundles", methods=["GET"])
 def predict_bundles():
     """Generates product bundle recommendations using Apriori algorithm on live sales data."""
-    sales_data = get_supabase_data("sales")
-    
-    # Fallback to mock data if there isn't enough live sales data to run Apriori
-    if not sales_data or len(sales_data) < 5:
+    sale_items = get_supabase_data("sale_items", "saleId,productName")
+
+    # Group line items by invoice -> one "basket" per sale
+    baskets = {}
+    for item in sale_items:
+        if item.get("saleId") and item.get("productName"):
+            baskets.setdefault(item["saleId"], set()).add(item["productName"])
+    transactions = [sorted(names) for names in baskets.values() if len(names) > 0]
+
+    # Fallback to sample bundles if there isn't enough live data to run Apriori
+    if len(transactions) < 5:
         return jsonify({
             "bundles": [
                 {
@@ -262,16 +270,6 @@ def predict_bundles():
             ]
         })
 
-    # Prepare transactions list from sales invoices
-    transactions = []
-    for sale in sales_data:
-        # Assuming 'items' is a JSON array of objects with 'productName'
-        items = sale.get('items', [])
-        transaction = [item.get('productName', 'Unknown') for item in items if isinstance(item, dict)]
-        # Filter out empty transactions
-        if len(transaction) > 0:
-            transactions.append(transaction)
-            
     # Need at least a few transactions with multiple items to find rules
     if len(transactions) < 5:
         return jsonify({"bundles": []})
@@ -310,12 +308,12 @@ def predict_bundles():
             "id": f"bundle-{idx}",
             "items": all_items,
             "description": f"{conf_pct}% of customers buying {ant_str} also order {con_str}.",
-            "confidence": round(row['confidence'], 2),
-            "lift": round(row['lift'], 2)
+            "confidence": round(float(row['confidence']), 2),
+            "lift": round(float(row['lift']), 2)
         })
         
     return jsonify({"bundles": bundles})
 
 if __name__ == "__main__":
     print("Starting Flask ML Microservice on http://127.0.0.1:5000 ...")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=False)

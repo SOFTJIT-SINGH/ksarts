@@ -18,8 +18,8 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    sku: "TXT-501",
+  const emptyForm = {
+    sku: "",
     name: "",
     category: "Silk Sarees" as ProductCategory,
     fabricType: "Katan Silk",
@@ -32,7 +32,16 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
     unitOfMeasure: "Pieces" as Product["unitOfMeasure"],
     reorderLevel: 15,
     supplierName: "Surat Heritage Weavers",
-  });
+  };
+  const [formData, setFormData] = useState(emptyForm);
+
+  // SKU is generated on open (not during render) so it stays unique and SSR-safe.
+  const openModal = () => {
+    setFormData({ ...emptyForm, sku: `TXT-${Date.now().toString().slice(-6)}` });
+    setImagePreview(null);
+    setError(null);
+    setIsOpen(true);
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,7 +95,7 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
   return (
     <>
       <Button
-        onClick={() => setIsOpen(true)}
+        onClick={openModal}
         className="text-xs h-10 gap-1.5 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
       >
         <Plus className="h-4 w-4" />
@@ -184,6 +193,7 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                         <option value="Suiting & Shirting">Suiting & Shirting</option>
                         <option value="Linen Collection">Linen Collection</option>
                         <option value="Designer Lehengas">Designer Lehengas</option>
+                        <option value="Dupattas & Stoles">Dupattas & Stoles</option>
                       </select>
                     </div>
                   </div>
@@ -263,6 +273,55 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                         className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Unit</label>
+                      <select
+                        value={formData.unitOfMeasure}
+                        onChange={(e) =>
+                          setFormData({ ...formData, unitOfMeasure: e.target.value as Product["unitOfMeasure"] })
+                        }
+                        className="w-full h-9 rounded-md border border-slate-200 px-2 text-xs focus:border-indigo-500 focus:outline-hidden"
+                      >
+                        <option value="Pieces">Pieces</option>
+                        <option value="Meters">Meters</option>
+                        <option value="Rolls">Rolls</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Reorder Level</label>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        value={formData.reorderLevel}
+                        onChange={(e) => setFormData({ ...formData, reorderLevel: Number(e.target.value) })}
+                        className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">GSM</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={formData.gsm}
+                        onChange={(e) => setFormData({ ...formData, gsm: Number(e.target.value) })}
+                        className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">Supplier Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.supplierName}
+                      onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
+                      className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
+                    />
                   </div>
                 </div>
               </div>

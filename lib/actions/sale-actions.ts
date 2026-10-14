@@ -1,9 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { friendlyDbError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
 import { SaleTransaction } from "@/lib/types";
+import { computeStockStatus } from "@/lib/pricing";
+
+// created_at is stored in UTC; the shop works in IST (UTC+5:30). Returns "YYYY-MM-DD HH:mm".
+function formatIST(iso?: string | null): string {
+  const d = iso ? new Date(iso) : new Date();
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  return ist.toISOString().replace("T", " ").substring(0, 16);
+}
 
 /**
  * Fetches all sale invoices from Supabase PostgreSQL.
@@ -52,13 +61,13 @@ export async function getSalesAction(): Promise<{ success: boolean; data?: SaleT
       paymentMode: doc.paymentMode,
       paymentStatus: doc.paymentStatus,
       salesPerson: doc.salesPerson,
-      createdAt: doc.created_at?.replace("T", " ").substring(0, 16) || new Date().toISOString(),
+      createdAt: formatIST(doc.created_at),
     }));
 
     return { success: true, data: sales };
   } catch (error: any) {
     console.error("Error fetching sales from Supabase:", error);
-    return { success: false, error: error.message || "Failed to fetch sales" };
+    return { success: false, error: friendlyDbError(error, "Failed to fetch sales") };
   }
 }
 
@@ -87,8 +96,38 @@ export async function createSaleAction(saleData: any): Promise<{ success: boolea
       // fallback to whatever was passed
     }
 
-    // 1. Insert into Sales
-    const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+    // --- Validate before touching the database ---
+    if (!saleData.customerId) return { success: false, error: "Please select a customer." };
+    if (!Array.isArray(saleData.items) || saleData.items.length === 0) {
+      return { success: false, error: "Add at least one item to the invoice." };
+    }
+    const requested = new Map<string, number>();
+    for (const item of saleData.items) {
+      const qty = Number(item.quantity);
+      if (!item.productId || !Number.isInteger(qty) || qty <= 0) {
+        return { success: false, error: "Every item needs a product and a whole-number quantity above 0." };
+      }
+      requested.set(item.productId, (requested.get(item.productId) || 0) + qty);
+    }
+    for (const [productId, qty] of requested) {
+      const { data: p } = await supabase
+        .from("products")
+        .select("name, stockQuantity, unitOfMeasure")
+        .eq("id", productId)
+        .single();
+      if (!p) return { success: false, error: "A selected product no longer exists." };
+      if (qty > Number(p.stockQuantity)) {
+        return {
+          success: false,
+          error: `Only ${p.stockQuantity} ${p.unitOfMeasure} of "${p.name}" in stock (requested ${qty}).`,
+        };
+      }
+    }
+
+    // 1. Insert into Sales (date + random suffix keeps invoice numbers unique)
+    const now = new Date();
+    const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    const invoiceNumber = `INV-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
     const { data: insertedSale, error: saleError } = await supabase
       .from("sales")
       .insert([
@@ -125,7 +164,11 @@ export async function createSaleAction(saleData: any): Promise<{ success: boolea
     }));
 
     const { error: itemsError } = await supabase.from("sale_items").insert(itemsToInsert);
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      // Do not leave an orphan invoice behind
+      await supabase.from("sales").delete().eq("id", saleId);
+      throw itemsError;
+    }
 
     // 3. Decrement Inventory & Update Product Status
     for (const item of saleData.items) {
@@ -136,10 +179,8 @@ export async function createSaleAction(saleData: any): Promise<{ success: boolea
         .single();
         
       if (currentProduct) {
-        const newStock = Math.max(0, currentProduct.stockQuantity - item.quantity);
-        let newStatus = "In Stock";
-        if (newStock === 0) newStatus = "Out of Stock";
-        else if (newStock <= currentProduct.reorderLevel) newStatus = "Low Stock";
+        const newStock = Math.max(0, Number(currentProduct.stockQuantity) - item.quantity);
+        const newStatus = computeStockStatus(newStock, Number(currentProduct.reorderLevel));
 
         await supabase
           .from("products")
@@ -157,16 +198,19 @@ export async function createSaleAction(saleData: any): Promise<{ success: boolea
         .single();
 
       if (currentCustomer) {
-        let newOutstanding = currentCustomer.outstandingBalanceINR;
-        if (saleData.paymentStatus !== "Paid") {
+        let newOutstanding = Number(currentCustomer.outstandingBalanceINR) || 0;
+        if (saleData.paymentStatus === "Pending") {
           newOutstanding += saleData.totalINR;
+        } else if (saleData.paymentStatus === "Partially Paid") {
+          const received = Math.min(Math.max(Number(saleData.amountReceived) || 0, 0), saleData.totalINR);
+          newOutstanding += saleData.totalINR - received;
         }
 
         await supabase
           .from("customers")
           .update({
-            totalPurchasesINR: currentCustomer.totalPurchasesINR + saleData.totalINR,
-            totalOrdersCount: currentCustomer.totalOrdersCount + 1,
+            totalPurchasesINR: Number(currentCustomer.totalPurchasesINR) + saleData.totalINR,
+            totalOrdersCount: Number(currentCustomer.totalOrdersCount) + 1,
             outstandingBalanceINR: newOutstanding,
             lastPurchaseDate: new Date().toISOString(),
           })
@@ -183,6 +227,6 @@ export async function createSaleAction(saleData: any): Promise<{ success: boolea
     return { success: true };
   } catch (error: any) {
     console.error("Error creating sale:", error);
-    return { success: false, error: error.message || "Failed to create sale invoice" };
+    return { success: false, error: friendlyDbError(error, "Failed to create sale invoice") };
   }
 }

@@ -2,7 +2,7 @@
 
 @layer base {
   :root {
-    --background: #f8fafc;
+    --background: #eef2f7;
     --foreground: #0f172a;
     --card: #ffffff;
     --card-foreground: #0f172a;
@@ -18,8 +18,8 @@
     --accent-foreground: #3730a3;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #e2e8f0;
-    --input: #e2e8f0;
+    --border: #cbd5e1;
+    --input: #94a3b8;
     --ring: #6366f1;
     --radius: 0.625rem;
   }
@@ -48,4 +48,78 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+
+/* ==========================================================================
+   VISUAL LAYER (unlayered on purpose: wins over per-component utility classes
+   so every form field / table gets the same clear, high-contrast treatment
+   without editing each field).
+   ========================================================================== */
+
+/* Form fields: clearly visible border + thicker bottom edge, indigo focus */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]),
+select,
+textarea {
+  background-color: #ffffff;
+  border: 1px solid #94a3b8;
+  border-bottom: 2px solid #64748b;
+  box-shadow: 0 1px 1px rgb(15 23 42 / 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]):hover,
+select:hover,
+textarea:hover {
+  border-color: #64748b;
+  border-bottom-color: #475569;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: #4f46e5;
+  border-bottom: 2px solid #4f46e5;
+  box-shadow: 0 0 0 3px rgb(79 70 229 / 0.18);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #f1f5f9;
+  cursor: not-allowed;
+}
+
+/* Tables: tinted header with strong rule, zebra rows, indigo hover */
+/* (tables with an inline style attr are PDF/report templates - leave them untouched) */
+table:not([style]) thead {
+  background-color: #e0e7ff;
+  border-bottom: 2px solid #a5b4fc;
+}
+table:not([style]) thead th {
+  color: #3730a3;
+}
+table:not([style]) tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+table:not([style]) tbody tr:hover {
+  background-color: #eef2ff;
+}
+
+/* Page titles get a short indigo accent bar */
+main h1:not([style]) {
+  position: relative;
+  padding-left: 14px;
+}
+main h1:not([style])::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #4f46e5, #0ea5e9);
 }
