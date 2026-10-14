@@ -151,6 +151,11 @@ python train_models.py    # trains and saves .joblib models
 python app.py             # serves http://127.0.0.1:5000, check /api/health
 ```
 
+**No terminal needed (local only):** log in as Admin, open **Settings → Live System Status → Flask ML Service** and click **Start Flask** (or **Stop Flask**). Output goes to `flask_service/flask.log`. This works only when Next.js runs on your own computer, not on Vercel.
+
+> **Honest note on training data:** the three `.joblib` models are trained once by `train_models.py` on **synthetic (randomly generated) data**, not on the shop's real sales. At run time Flask feeds **live Supabase data** into those fixed models (so predictions react to real stock, prices and customers), but the models are not retrained automatically. Only the Apriori bundle rules are computed fresh from real `sale_items` on every request. Retraining from real data needs several months of sales history (the database currently has far too little).
+
+
 ### 5. Verify the build
 ```bash
 npm run build      # production build
