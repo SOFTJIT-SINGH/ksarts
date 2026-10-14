@@ -110,7 +110,7 @@ export default async function AIInsightsPage() {
               <div>
                 <CardTitle className="text-base font-bold">1. Revenue & Sales Prediction</CardTitle>
                 <CardDescription className="text-xs">
-                  Linear Regression / Random Forest Regressor
+                  Random Forest Regressor
                 </CardDescription>
               </div>
             </div>
@@ -146,7 +146,7 @@ export default async function AIInsightsPage() {
               <div>
                 <CardTitle className="text-base font-bold">2. Fabric Demand Forecasting</CardTitle>
                 <CardDescription className="text-xs">
-                  TimeSeries Stockout Prevention Algorithm
+                  Random Forest Stockout Prevention (stock, price, month)
                 </CardDescription>
               </div>
             </div>
@@ -179,9 +179,9 @@ export default async function AIInsightsPage() {
                 <Users className="h-5 w-5" />
               </div>
               <div>
-                <CardTitle className="text-base font-bold">3. Customer RFM Segmentation</CardTitle>
+                <CardTitle className="text-base font-bold">3. Customer Segmentation</CardTitle>
                 <CardDescription className="text-xs">
-                  K-Means Clustering (Recency, Frequency, Monetary)
+                  K-Means Clustering (Spend, Orders, Credit Limit)
                 </CardDescription>
               </div>
             </div>

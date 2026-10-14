@@ -20,7 +20,7 @@ This project solves that by providing a DSS that pairs a modern light-theme web 
 **Frontend**
 - Next.js 16 (App Router) + React 19, strict TypeScript
 - Tailwind CSS v4 (Light Theme only), Lucide React icons, Recharts charts
-- React Hook Form + Zod for validated forms
+- Controlled React forms with browser validation, re-validated inside every Server Action
 - PDF report export via `jspdf` + `html2canvas` (Reports page)
 
 **Backend & Database**
@@ -47,7 +47,7 @@ This project solves that by providing a DSS that pairs a modern light-theme web 
 | AI Module | Algorithm | Output |
 | :--- | :--- | :--- |
 | Sales Prediction | `RandomForestRegressor` | Next month's predicted sales revenue (INR) from historical sales data |
-| Demand Forecasting | TimeSeries Analysis | 30-day product demand forecast + low-stock restock warnings |
+| Demand Forecasting | Random Forest Regression (stock, price, month) | 30-day product demand forecast + low-stock restock warnings |
 | Customer Segmentation | K-Means Clustering | RFM-based clusters: VIP Wholesaler / Regular Retailer / At-Risk customer |
 | Bundle Recommendation | Apriori Association Mining | "Frequently bought together" fabric bundle suggestions |
 

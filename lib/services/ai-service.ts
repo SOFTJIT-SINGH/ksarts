@@ -79,7 +79,7 @@ export async function getBundleRecommendationsFromAI(): Promise<BundleRecommenda
 }
 
 /**
- * Fetches TimeSeries Demand Forecasting from Flask ML.
+ * Fetches Random Forest demand forecasts (stock, price, month) from Flask ML.
  */
 export async function getDemandForecastFromAI(): Promise<DemandForecastItem[]> {
   try {
