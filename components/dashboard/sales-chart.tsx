@@ -40,6 +40,12 @@ export function SalesChart({ data }: SalesChartProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-2">
+        {data.length === 0 ? (
+          <div className="flex h-[300px] w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center">
+            <p className="text-sm font-semibold text-slate-700">No sales to chart yet</p>
+            <p className="text-xs text-slate-500">Monthly revenue appears here after your first invoice.</p>
+          </div>
+        ) : (
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -73,7 +79,7 @@ export function SalesChart({ data }: SalesChartProps) {
                   borderRadius: "8px",
                   boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                 }}
-                formatter={(value: any) => [formatINR(Number(value || 0)), ""]}
+                formatter={(value: any) => [value === null || value === undefined ? "—" : formatINR(Number(value)), ""]}
               />
               <Area
                 type="monotone"
@@ -97,6 +103,7 @@ export function SalesChart({ data }: SalesChartProps) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -15,9 +15,10 @@ import { KPICard } from "@/components/dashboard/kpi-card";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { InventoryAlert } from "@/components/dashboard/inventory-alert";
 import { AITeaser } from "@/components/dashboard/ai-teaser";
-import { MOCK_PRODUCTS, MOCK_SALES } from "@/lib/mock-data/textile-data";
 import { formatINR } from "@/lib/utils";
 import { getSalesForecastFromAI } from "@/lib/services/ai-service";
+import { getBusinessInsightsAction } from "@/lib/actions/insights-actions";
+import { EmptyState, ErrorBanner } from "@/components/ui/data-states";
 import type { SalesForecastPoint } from "@/lib/types";
 
 import { SaleModal } from "@/components/sales/sale-modal";
@@ -25,49 +26,27 @@ import { getProductsAction } from "@/lib/actions/product-actions";
 import { getSalesAction } from "@/lib/actions/sale-actions";
 
 export default async function DashboardPage() {
-  // Fetch live data
-  const [productsRes, salesRes, ai] = await Promise.all([
+  // Everything below comes from the database (and the Flask ML service for the forecast)
+  const [productsRes, salesRes, ai, insights] = await Promise.all([
     getProductsAction(),
     getSalesAction(),
     getSalesForecastFromAI(),
+    getBusinessInsightsAction(),
   ]);
 
-  const products = productsRes.success && productsRes.data && productsRes.data.length > 0 ? productsRes.data : MOCK_PRODUCTS;
-  const sales = salesRes.success && salesRes.data && salesRes.data.length > 0 ? salesRes.data : MOCK_SALES;
+  const products = productsRes.data ?? [];
+  const sales = salesRes.data ?? [];
+  const loadError = !productsRes.success ? productsRes.error : !salesRes.success ? salesRes.error : null;
 
   const totalRevenue = sales.reduce((acc, sale) => acc + sale.totalINR, 0);
+  const revenueChange = insights.growthPercentage ?? undefined;
 
-  // ---- Real month-by-month revenue (createdAt is "YYYY-MM-DD HH:mm") ----
-  const monthlyTotals = new Map<string, number>();
-  for (const sale of sales) {
-    const key = sale.createdAt.substring(0, 7);
-    monthlyTotals.set(key, (monthlyTotals.get(key) || 0) + sale.totalINR);
-  }
-  const monthKeys = Array.from(monthlyTotals.keys()).sort();
-  const monthLabel = (key: string) =>
-    new Date(`${key}-01T00:00:00`).toLocaleString("en-IN", { month: "short", year: "2-digit" });
-
-  const latestKey = monthKeys[monthKeys.length - 1];
-  const prevKey = monthKeys[monthKeys.length - 2];
-  const latestRevenue = latestKey ? monthlyTotals.get(latestKey) || 0 : 0;
-  const prevRevenue = prevKey ? monthlyTotals.get(prevKey) || 0 : 0;
-  const revenueChange = prevRevenue > 0 ? Number((((latestRevenue - prevRevenue) / prevRevenue) * 100).toFixed(1)) : undefined;
-
-  // Chart: real actuals + the AI forecast for next month (falls back to the sample series if <2 months of data)
-  let chartData: SalesForecastPoint[] = ai.forecast;
-  if (monthKeys.length >= 2) {
-    chartData = monthKeys.map((key, i) => ({
-      month: monthLabel(key),
-      actualSalesINR: monthlyTotals.get(key) || 0,
-      // join the dashed forecast line to the last real month
-      predictedSalesINR: i === monthKeys.length - 1 ? monthlyTotals.get(key) || 0 : (undefined as unknown as number),
-    }));
-    chartData.push({
-      month: "Next (AI)",
-      actualSalesINR: undefined as unknown as number,
-      predictedSalesINR: ai.overview.predictedNextMonthSalesINR,
-    });
-  }
+  // Chart: the Flask forecast (actuals + fitted trend + next month) when available,
+  // otherwise the real monthly revenue straight from the database.
+  const chartData: SalesForecastPoint[] =
+    ai.isLive && ai.forecast.length > 0
+      ? ai.forecast
+      : insights.monthly.map((m) => ({ month: m.label, actualSalesINR: m.revenueINR, predictedSalesINR: null }));
 
   const alertCount = products.filter((p) => p.status !== "In Stock").length;
 
@@ -95,17 +74,15 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {loadError && <ErrorBanner message={loadError} />}
+
       {/* KPI Overview Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
           title="Total Sales Revenue"
           value={formatINR(totalRevenue)}
           change={revenueChange}
-          changeLabel={
-            revenueChange !== undefined && latestKey && prevKey
-              ? `${monthLabel(latestKey)} vs ${monthLabel(prevKey)}`
-              : undefined
-          }
+          changeLabel={insights.growthLabel ?? undefined}
           icon={IndianRupee}
           iconBgColor="bg-indigo-50"
           iconColor="text-indigo-600"
@@ -134,7 +111,21 @@ export default async function DashboardPage() {
       </div>
 
       {/* AI Intelligence Teaser Banner */}
-      <AITeaser overview={ai.overview} />
+      <AITeaser
+        data={{
+          aiLive: ai.isLive,
+          predictedNextMonthSalesINR: ai.predictedNextMonthSalesINR,
+          forecastMethod: ai.method,
+          monthsOfData: ai.monthsOfData,
+          topCategory: insights.topCategory,
+          topCategoryShare: insights.topCategoryShare,
+          growthPercentage: insights.growthPercentage,
+          growthLabel: insights.growthLabel,
+          restockCount: insights.restockCount,
+          deadStockCount: insights.deadStockCount,
+          deadStockWindowDays: insights.deadStockWindowDays,
+        }}
+      />
 
       {/* Main Analytics Grid (Sales Area Chart + Inventory Alert List) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -172,6 +163,13 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
+                {sales.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
+                      No invoices yet. Create your first sale to see it here.
+                    </td>
+                  </tr>
+                )}
                 {sales.slice(0, 5).map((sale) => (
                   <tr key={sale.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-900">{sale.invoiceNumber}</td>

@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatINR } from "@/lib/utils";
-import { MOCK_PRODUCTS } from "@/lib/mock-data/textile-data";
+import { EmptyState, ErrorBanner } from "@/components/ui/data-states";
 
 import { getProductsAction } from "@/lib/actions/product-actions";
 import { RestockModal } from "@/components/inventory/restock-modal";
 
 export default async function InventoryPage() {
   const res = await getProductsAction();
-  const products = res.success && res.data && res.data.length > 0 ? res.data : MOCK_PRODUCTS;
+  const products = res.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -34,7 +34,17 @@ export default async function InventoryPage() {
         </Link>
       </div>
 
+      {!res.success && <ErrorBanner message={res.error || "Inventory could not be read."} />}
+      {res.success && products.length === 0 && (
+        <EmptyState
+          icon={Boxes}
+          title="No stock to show"
+          description="Add products on the Products page first. Their stock levels will appear here."
+        />
+      )}
+
       {/* Inventory Table */}
+      {products.length > 0 && (
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -105,6 +115,7 @@ export default async function InventoryPage() {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

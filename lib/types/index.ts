@@ -73,28 +73,18 @@ export interface SaleTransaction {
   createdAt: string;
 }
 
-export interface AIPredictionOverview {
-  predictedNextMonthSalesINR: number;
-  growthPercentage: number;
-  highDemandCategory: ProductCategory;
-  predictedDeadStockItemsCount: number;
-  recommendedRestockCount: number;
-}
-
 export interface SalesForecastPoint {
   month: string;
-  actualSalesINR: number;
-  predictedSalesINR: number;
+  actualSalesINR: number | null; // null for the future forecast month
+  predictedSalesINR: number | null; // null when there is not enough history for a trend
 }
 
 export interface DemandForecastItem {
   productId: string;
   productName: string;
-  category: ProductCategory;
-  currentStock: number;
+  stockQuantity: number;
   predictedDemandNext30Days: number;
   recommendedAction: "Restock Immediately" | "Monitor Inventory" | "Maintain Stock" | "Discount / Clearance";
-  confidenceScore: number; // percentage e.g. 92%
 }
 
 export interface BundleRecommendation {

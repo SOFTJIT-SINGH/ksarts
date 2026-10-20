@@ -1,101 +1,81 @@
-import {
-  AIPredictionOverview,
-  SalesForecastPoint,
-  DemandForecastItem,
-  BundleRecommendation,
-} from "@/lib/types";
-import {
-  MOCK_AI_OVERVIEW,
-  MOCK_SALES_FORECAST,
-  MOCK_DEMAND_ITEMS,
-  MOCK_BUNDLE_RECOMMENDATIONS,
-} from "@/lib/mock-data/textile-data";
+import { SalesForecastPoint, DemandForecastItem, BundleRecommendation } from "@/lib/types";
 
 const FLASK_AI_SERVICE_URL =
   process.env.FLASK_AI_SERVICE_URL || "http://127.0.0.1:5000/api/v1/predict";
 
-/**
- * Server-side AI Service wrapper to query Python Flask Machine Learning Microservice.
- * Falls back gracefully to intelligent mock estimates if Flask server is offline.
- */
 const FETCH_OPTS = {
   method: "GET",
   headers: { "Content-Type": "application/json" },
   cache: "no-store",
 } as const;
 
-export async function getSalesForecastFromAI(): Promise<{
-  overview: AIPredictionOverview;
-  forecast: SalesForecastPoint[];
+// LEARNING NOTE: No mock data here any more
+//   what:   When Flask is offline these functions return `isLive: false` with EMPTY results
+//   why:    The UI must never show invented numbers as if they came from the database/ML service
+//   remember: The pages show an "AI service offline - start Flask" empty state instead
+
+async function callFlask(path: string) {
+  const response = await fetch(`${FLASK_AI_SERVICE_URL}${path}`, {
+    ...FETCH_OPTS,
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) {
+    throw new Error(`Flask service responded with status: ${response.status}`);
+  }
+  return response.json();
+}
+
+export interface SalesForecastResult {
   isLive: boolean;
+  predictedNextMonthSalesINR: number | null;
+  /** "linear-trend" (3+ months), "average" (1-2 months) or "no-data" */
+  method: string;
+  monthsOfData: number;
+  forecast: SalesForecastPoint[];
+}
+
+/** Next-month revenue forecast learned from the real monthly sales in Supabase (done inside Flask). */
+export async function getSalesForecastFromAI(): Promise<SalesForecastResult> {
+  try {
+    const data = await callFlask("/sales");
+    return {
+      isLive: true,
+      predictedNextMonthSalesINR: data.predictedNextMonthSalesINR ?? null,
+      method: data.method ?? "no-data",
+      monthsOfData: data.monthsOfData ?? 0,
+      forecast: Array.isArray(data.forecast) ? data.forecast : [],
+    };
+  } catch (error) {
+    console.warn("Flask AI Service unreachable for sales forecast:", error);
+    return { isLive: false, predictedNextMonthSalesINR: null, method: "offline", monthsOfData: 0, forecast: [] };
+  }
+}
+
+/** Apriori "frequently bought together" rules mined from real invoice line items. */
+export async function getBundleRecommendationsFromAI(): Promise<{
+  isLive: boolean;
+  bundles: BundleRecommendation[];
+  reason?: string;
 }> {
   try {
-    const response = await fetch(`${FLASK_AI_SERVICE_URL}/sales`, {
-      ...FETCH_OPTS,
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Flask service responded with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    return {
-      overview: data.overview || MOCK_AI_OVERVIEW,
-      forecast: data.forecast || MOCK_SALES_FORECAST,
-      isLive: Boolean(data.overview),
-    };
+    const data = await callFlask("/bundles");
+    return { isLive: true, bundles: data.bundles ?? [], reason: data.reason };
   } catch (error) {
-    console.warn("Flask AI Service unreachable, using fallback predictions:", error);
-    return {
-      overview: MOCK_AI_OVERVIEW,
-      forecast: MOCK_SALES_FORECAST,
-      isLive: false,
-    };
+    console.warn("Flask AI Service unreachable for bundles:", error);
+    return { isLive: false, bundles: [] };
   }
 }
 
-/**
- * Fetches Apriori product bundle recommendations from Flask ML.
- */
-export async function getBundleRecommendationsFromAI(): Promise<BundleRecommendation[]> {
+/** Per-product 30-day demand estimates computed from live stock and prices. */
+export async function getDemandForecastFromAI(): Promise<{
+  isLive: boolean;
+  items: DemandForecastItem[];
+}> {
   try {
-    const response = await fetch(`${FLASK_AI_SERVICE_URL}/bundles`, {
-      ...FETCH_OPTS,
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Flask service responded with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.bundles && data.bundles.length > 0 ? data.bundles : MOCK_BUNDLE_RECOMMENDATIONS;
+    const data = await callFlask("/demand");
+    return { isLive: true, items: data.demand ?? [] };
   } catch (error) {
-    console.warn("Flask AI Service unreachable for bundles, using mock bundles:", error);
-    return MOCK_BUNDLE_RECOMMENDATIONS;
-  }
-}
-
-/**
- * Fetches Random Forest demand forecasts (stock, price, month) from Flask ML.
- */
-export async function getDemandForecastFromAI(): Promise<DemandForecastItem[]> {
-  try {
-    const response = await fetch(`${FLASK_AI_SERVICE_URL}/demand`, {
-      ...FETCH_OPTS,
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Flask service responded with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.demand && data.demand.length > 0 ? data.demand : MOCK_DEMAND_ITEMS;
-  } catch (error) {
-    console.warn("Flask AI Service unreachable for demand, using mock demand:", error);
-    return MOCK_DEMAND_ITEMS;
+    console.warn("Flask AI Service unreachable for demand:", error);
+    return { isLive: false, items: [] };
   }
 }

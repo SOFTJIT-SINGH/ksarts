@@ -1,12 +1,6 @@
-import {
-  Product,
-  Customer,
-  SaleTransaction,
-  AIPredictionOverview,
-  SalesForecastPoint,
-  DemandForecastItem,
-  BundleRecommendation,
-} from "../types";
+// DEMO SEED DATA ONLY. Used by the 1-click seeder on the Settings page to fill an empty database.
+// No page reads this file directly: every screen shows what is really in Supabase.
+import { Product, Customer, SaleTransaction } from "../types";
 
 export const MOCK_PRODUCTS: Product[] = [
   {
@@ -617,71 +611,5 @@ export const MOCK_SALES: SaleTransaction[] = [
     paymentStatus: "Paid",
     salesPerson: "Priya Soni",
     createdAt: "2026-08-18 10:00",
-  },
-];
-
-export const MOCK_AI_OVERVIEW: AIPredictionOverview = {
-  predictedNextMonthSalesINR: 1850000,
-  growthPercentage: 14.2,
-  highDemandCategory: "Silk Sarees",
-  predictedDeadStockItemsCount: 4,
-  recommendedRestockCount: 6,
-};
-
-export const MOCK_SALES_FORECAST: SalesForecastPoint[] = [
-  { month: "Feb", actualSalesINR: 1200000, predictedSalesINR: 1180000 },
-  { month: "Mar", actualSalesINR: 1350000, predictedSalesINR: 1320000 },
-  { month: "Apr", actualSalesINR: 1410000, predictedSalesINR: 1450000 },
-  { month: "May", actualSalesINR: 1580000, predictedSalesINR: 1520000 },
-  { month: "Jun", actualSalesINR: 1620000, predictedSalesINR: 1640000 },
-  { month: "Jul", actualSalesINR: 1710000, predictedSalesINR: 1700000 },
-  { month: "Aug (Pred)", actualSalesINR: 0, predictedSalesINR: 1850000 },
-  { month: "Sep (Pred)", actualSalesINR: 0, predictedSalesINR: 2100000 },
-];
-
-export const MOCK_DEMAND_ITEMS: DemandForecastItem[] = [
-  {
-    productId: "prod-001",
-    productName: "Pure Banarasi Zari Brocade Saree",
-    category: "Silk Sarees",
-    currentStock: 45,
-    predictedDemandNext30Days: 95,
-    recommendedAction: "Restock Immediately",
-    confidenceScore: 94,
-  },
-  {
-    productId: "prod-002",
-    productName: "Chanderi Handloom Cotton Fabric",
-    category: "Cotton Fabrics",
-    currentStock: 12,
-    predictedDemandNext30Days: 140,
-    recommendedAction: "Restock Immediately",
-    confidenceScore: 91,
-  },
-  {
-    productId: "prod-005",
-    productName: "100% Pure Organic Linen Fabric",
-    category: "Linen Collection",
-    currentStock: 120,
-    predictedDemandNext30Days: 110,
-    recommendedAction: "Maintain Stock",
-    confidenceScore: 88,
-  },
-];
-
-export const MOCK_BUNDLE_RECOMMENDATIONS: BundleRecommendation[] = [
-  {
-    id: "mock-bundle-1",
-    items: ["Banarasi Silk Saree", "Zardozi Dupatta"],
-    description: "84% of wholesale buyers purchasing Banarasi Sarees also order matching Dupattas.",
-    confidence: 0.84,
-    lift: 2.1,
-  },
-  {
-    id: "mock-bundle-2",
-    items: ["Cotton Kurti Fabric", "Linen Trouser Material"],
-    description: "65% of customers buying Kurti fabric pair it with Linen trouser material.",
-    confidence: 0.65,
-    lift: 1.8,
   },
 ];

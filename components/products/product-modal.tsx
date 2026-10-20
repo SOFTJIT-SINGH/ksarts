@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { getProductsAction } from "@/lib/actions/product-actions";
 import { Plus, Loader2, X, Package, UploadCloud, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductCategory, Product } from "@/lib/types";
@@ -22,21 +23,47 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
     sku: "",
     name: "",
     category: "Silk Sarees" as ProductCategory,
-    fabricType: "Katan Silk",
-    weaveType: "Jacquard Weave",
-    gsm: 120,
-    color: "Red",
-    unitPrice: 5000,
-    mrp: 8500,
-    stockQuantity: 50,
+    fabricType: "",
+    weaveType: "",
+    gsm: 0,
+    color: "",
+    unitPrice: 0,
+    mrp: 0,
+    stockQuantity: 0,
     unitOfMeasure: "Pieces" as Product["unitOfMeasure"],
-    reorderLevel: 15,
-    supplierName: "Surat Heritage Weavers",
+    reorderLevel: 10,
+    supplierName: "",
   };
+
+  // Suggestions come from the products already in the database (fabrics, weaves, colours, suppliers)
+  const [suggestions, setSuggestions] = useState<{
+    fabricTypes: string[];
+    weaveTypes: string[];
+    colors: string[];
+    suppliers: string[];
+  }>({ fabricTypes: [], weaveTypes: [], colors: [], suppliers: [] });
   const [formData, setFormData] = useState(emptyForm);
 
   // SKU is generated on open (not during render) so it stays unique and SSR-safe.
+  const loadSuggestions = async () => {
+    try {
+      const res = await getProductsAction();
+      const rows = res.data ?? [];
+      const uniq = (values: (string | undefined)[]) =>
+        Array.from(new Set(values.filter((v): v is string => !!v && v.trim() !== ""))).sort();
+      setSuggestions({
+        fabricTypes: uniq(rows.map((p) => p.fabricType)),
+        weaveTypes: uniq(rows.map((p) => p.weaveType)),
+        colors: uniq(rows.map((p) => p.color)),
+        suppliers: uniq(rows.map((p) => p.supplierName)),
+      });
+    } catch {
+      /* suggestions are optional */
+    }
+  };
+
   const openModal = () => {
+    loadSuggestions();
     setFormData({ ...emptyForm, sku: `TXT-${Date.now().toString().slice(-6)}` });
     setImagePreview(null);
     setError(null);
@@ -215,6 +242,9 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                       <label className="text-xs font-semibold text-slate-700">Fabric Type</label>
                       <input
                         type="text"
+                        required
+                        list="fabric-options"
+                        placeholder="e.g. Katan Silk"
                         value={formData.fabricType}
                         onChange={(e) => setFormData({ ...formData, fabricType: e.target.value })}
                         className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
@@ -224,6 +254,9 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                       <label className="text-xs font-semibold text-slate-700">Weave Type</label>
                       <input
                         type="text"
+                        required
+                        list="weave-options"
+                        placeholder="e.g. Jacquard"
                         value={formData.weaveType}
                         onChange={(e) => setFormData({ ...formData, weaveType: e.target.value })}
                         className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
@@ -233,6 +266,9 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                       <label className="text-xs font-semibold text-slate-700">Color</label>
                       <input
                         type="text"
+                        required
+                        list="color-options"
+                        placeholder="e.g. Red"
                         value={formData.color}
                         onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                         className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
@@ -246,7 +282,8 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                       <input
                         type="number"
                         required
-                        value={formData.unitPrice}
+                        min={1}
+                        value={formData.unitPrice || ""}
                         onChange={(e) => setFormData({ ...formData, unitPrice: Number(e.target.value) })}
                         className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
                       />
@@ -256,7 +293,8 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                       <input
                         type="number"
                         required
-                        value={formData.mrp}
+                        min={1}
+                        value={formData.mrp || ""}
                         onChange={(e) => setFormData({ ...formData, mrp: Number(e.target.value) })}
                         className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
                       />
@@ -266,6 +304,7 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                       <input
                         type="number"
                         required
+                        min={0}
                         value={formData.stockQuantity}
                         onChange={(e) =>
                           setFormData({ ...formData, stockQuantity: Number(e.target.value) })
@@ -318,6 +357,8 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                     <input
                       type="text"
                       required
+                      list="supplier-options"
+                      placeholder="Supplier / vendor name"
                       value={formData.supplierName}
                       onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
                       className="w-full h-9 rounded-md border border-slate-200 px-3 text-xs focus:border-indigo-500 focus:outline-hidden"
@@ -325,6 +366,27 @@ export function ProductModal({ onSuccess }: ProductModalProps) {
                   </div>
                 </div>
               </div>
+
+              <datalist id="fabric-options">
+                {suggestions.fabricTypes.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              <datalist id="weave-options">
+                {suggestions.weaveTypes.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              <datalist id="color-options">
+                {suggestions.colors.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              <datalist id="supplier-options">
+                {suggestions.suppliers.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                 <Button

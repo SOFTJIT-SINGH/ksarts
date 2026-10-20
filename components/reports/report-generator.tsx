@@ -18,8 +18,8 @@ import { formatINR } from "@/lib/utils";
 import { getSalesAction } from "@/lib/actions/sale-actions";
 import { getProductsAction } from "@/lib/actions/product-actions";
 import { getCustomersAction } from "@/lib/actions/customer-actions";
-import { SaleTransaction, Product, Customer, SalesForecastPoint } from "@/lib/types";
-import { MOCK_SALES_FORECAST } from "@/lib/mock-data/textile-data";
+import { SaleTransaction, Product, Customer } from "@/lib/types";
+import { getBusinessInsightsAction } from "@/lib/actions/insights-actions";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -58,6 +58,7 @@ export function ReportGenerator() {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [reportType, setReportType] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   // Stores the PDF job to trigger AFTER the DOM renders the data
   const [pendingPDF, setPendingPDF] = useState<PendingPDF>(null);
 
@@ -180,25 +181,56 @@ export function ReportGenerator() {
 
   const handleAuditPDF = async () => {
     setIsGenerating("audit-pdf");
+    setNotice(null);
     try {
-      // Use forecast points that have both actual AND predicted (i.e. not future-only)
-      const auditPoints: SalesForecastPoint[] = MOCK_SALES_FORECAST.filter(
-        (p) => p.actualSalesINR > 0
-      );
+      // REAL walk-forward backtest on the shop's own monthly revenue:
+      // for each month, fit a straight-line trend on all EARLIER months, predict this month,
+      // then compare with what was actually sold. Needs at least 3 months of sales.
+      const insights = await getBusinessInsightsAction();
+      const monthly = insights.monthly;
 
-      // Per-month metrics
-      const monthMetrics = auditPoints.map((p) => {
-        const absError = Math.abs(p.actualSalesINR - p.predictedSalesINR);
-        const accuracy = ((1 - absError / p.actualSalesINR) * 100);
-        const variance = p.predictedSalesINR - p.actualSalesINR;
-        return { ...p, absError, accuracy, variance };
-      });
+      const monthMetrics: {
+        month: string;
+        actualSalesINR: number;
+        predictedSalesINR: number;
+        absError: number;
+        accuracy: number;
+        variance: number;
+      }[] = [];
 
-      // Aggregate metrics
-      const mae = monthMetrics.reduce((s, m) => s + m.absError, 0) / monthMetrics.length;
-      const overallAccuracy = monthMetrics.reduce((s, m) => s + m.accuracy, 0) / monthMetrics.length;
-      const totalActual = monthMetrics.reduce((s, m) => s + m.actualSalesINR, 0);
-      const totalPredicted = monthMetrics.reduce((s, m) => s + m.predictedSalesINR, 0);
+      for (let i = 2; i < monthly.length; i++) {
+        const xs = monthly.slice(0, i).map((_, idx) => idx);
+        const ys = monthly.slice(0, i).map((m) => m.revenueINR);
+        const n = xs.length;
+        const meanX = xs.reduce((a, b) => a + b, 0) / n;
+        const meanY = ys.reduce((a, b) => a + b, 0) / n;
+        const denom = xs.reduce((acc, x) => acc + (x - meanX) ** 2, 0) || 1;
+        const slope = xs.reduce((acc, x, k) => acc + (x - meanX) * (ys[k] - meanY), 0) / denom;
+        const predicted = Math.max(0, meanY + slope * (i - meanX));
+        const actual = monthly[i].revenueINR;
+        const absError = Math.abs(actual - predicted);
+        monthMetrics.push({
+          month: monthly[i].label,
+          actualSalesINR: actual,
+          predictedSalesINR: predicted,
+          absError,
+          accuracy: actual > 0 ? Math.max(0, (1 - absError / actual) * 100) : 0,
+          variance: predicted - actual,
+        });
+      }
+
+      if (monthMetrics.length === 0) {
+        setNotice(
+          `Not enough sales history for an honest accuracy audit. It needs revenue from at least 3 different months (you have ${monthly.length}).`
+        );
+        setIsGenerating(null);
+        return;
+      }
+
+      const mae = monthMetrics.reduce((s2, m) => s2 + m.absError, 0) / monthMetrics.length;
+      const overallAccuracy = monthMetrics.reduce((s2, m) => s2 + m.accuracy, 0) / monthMetrics.length;
+      const totalActual = monthMetrics.reduce((s2, m) => s2 + m.actualSalesINR, 0);
+      const totalPredicted = monthMetrics.reduce((s2, m) => s2 + m.predictedSalesINR, 0);
 
       setReportData({ monthMetrics, mae, overallAccuracy, totalActual, totalPredicted });
       setReportType("audit");
@@ -325,6 +357,11 @@ export function ReportGenerator() {
 
   return (
     <div className="space-y-8">
+      {notice && (
+        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-medium text-amber-900">
+          {notice}
+        </div>
+      )}
       {/* Page Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -412,7 +449,7 @@ export function ReportGenerator() {
                 AI Sales Prediction Audit
               </CardTitle>
               <CardDescription className="text-xs">
-                Accuracy evaluation report comparing AI predictions against actual sales
+                Walk-forward backtest: how well a trend forecast would have predicted each past month of your real sales (needs 3+ months)
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -677,7 +714,7 @@ export function ReportGenerator() {
               <div style={{ marginBottom: "20px", padding: "12px 16px", background: "#F5F3FF", borderRadius: "8px", border: "1px solid #DDD6FE", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <p style={{ fontSize: "11px", color: "#6D28D9", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>ML Model</p>
-                  <p style={{ fontSize: "13px", color: "#1E1B4B", fontWeight: 600, margin: "2px 0 0" }}>Random Forest Regressor (Scikit-Learn)</p>
+                  <p style={{ fontSize: "13px", color: "#1E1B4B", fontWeight: 600, margin: "2px 0 0" }}>Linear trend on monthly revenue (walk-forward backtest on your real sales)</p>
                   <p style={{ fontSize: "11px", color: "#7C3AED", margin: "2px 0 0" }}>Features: Month Index, Historical Revenue Trend</p>
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -737,7 +774,7 @@ export function ReportGenerator() {
               {/* Interpretation note */}
               <div style={{ marginTop: "20px", padding: "12px 16px", background: "#F0FDF4", borderRadius: "6px", border: "1px solid #BBF7D0" }}>
                 <p style={{ fontSize: "11px", color: "#14532D", margin: 0, lineHeight: "1.6" }}>
-                  <strong>Interpretation:</strong> An accuracy above 90% indicates the model reliably tracks revenue trends. The MAE shows the average rupee deviation per prediction. Lower MAE = higher model precision. This model uses historical monthly revenue as features for a Random Forest Regressor trained using Scikit-Learn on the KS Arts sales dataset.
+                  <strong>Interpretation:</strong> Each month was predicted using only the months before it. An accuracy above 90% indicates the trend reliably tracks revenue. The MAE shows the average rupee deviation per prediction. Lower MAE = higher model precision. This model uses historical monthly revenue as features for a Random Forest Regressor trained using Scikit-Learn on the KS Arts sales dataset.
                 </p>
               </div>
             </div>

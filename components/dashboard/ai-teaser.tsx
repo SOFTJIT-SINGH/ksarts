@@ -3,50 +3,89 @@ import { Sparkles, ArrowRight, TrendingUp, Users, ShoppingBag } from "lucide-rea
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AIPredictionOverview } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
-interface AITeaserProps {
-  overview: AIPredictionOverview;
+export interface AITeaserData {
+  /** true when the Flask ML service answered */
+  aiLive: boolean;
+  predictedNextMonthSalesINR: number | null;
+  forecastMethod: string; // "linear-trend" | "average" | "no-data" | "offline"
+  monthsOfData: number;
+  topCategory: string | null;
+  topCategoryShare: number | null;
+  growthPercentage: number | null;
+  growthLabel: string | null;
+  restockCount: number;
+  deadStockCount: number;
+  deadStockWindowDays: number;
 }
 
-export function AITeaser({ overview }: AITeaserProps) {
+function predictedLabel(d: AITeaserData): { value: string; hint: string } {
+  if (!d.aiLive) return { value: "AI offline", hint: "Start Flask in Settings" };
+  if (d.predictedNextMonthSalesINR === null) return { value: "No data yet", hint: "Create invoices first" };
+  const hint =
+    d.forecastMethod === "linear-trend"
+      ? `Trend of ${d.monthsOfData} months`
+      : `Average of ${d.monthsOfData} month${d.monthsOfData === 1 ? "" : "s"}`;
+  return { value: formatINR(d.predictedNextMonthSalesINR), hint };
+}
+
+export function AITeaser({ data }: { data: AITeaserData }) {
+  const predicted = predictedLabel(data);
+
   return (
     <Card className="col-span-full border-indigo-200 bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white shadow-md">
       <CardContent className="p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          {/* AI Banner Left Description */}
+          {/* AI Banner Left Description (built from real database figures) */}
           <div className="space-y-2 max-w-2xl">
             <div className="flex items-center gap-2">
               <Badge variant="purple" className="bg-indigo-500/20 text-indigo-200 border-indigo-400/30">
                 <Sparkles className="h-3 w-3 mr-1 text-indigo-300" />
-                AI Intelligence Active
+                {data.aiLive ? "AI Intelligence Active" : "AI Service Offline"}
               </Badge>
-              <span className="text-xs text-indigo-300 font-medium">Textile Demand DSS Model v1</span>
+              <span className="text-xs text-indigo-300 font-medium">Computed from your live data</span>
             </div>
 
             <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">
-              Festive Season Demand Forecast Available
+              {data.topCategory ? `${data.topCategory} is your top seller` : "Create invoices to unlock insights"}
             </h2>
             <p className="text-sm text-indigo-100/80 leading-relaxed">
-              Our ML model projects a <span className="font-semibold text-emerald-400">+{overview.growthPercentage}% surge</span> in{" "}
-              <span className="font-semibold text-white">{overview.highDemandCategory}</span> demand over the next 30 days. Restock early to maximize profit margins.
+              {data.topCategory ? (
+                <>
+                  It brings in{" "}
+                  <span className="font-semibold text-emerald-400">{data.topCategoryShare ?? 0}%</span> of your item revenue.
+                  {data.growthPercentage !== null && data.growthLabel && (
+                    <>
+                      {" "}
+                      Monthly revenue is{" "}
+                      <span className={`font-semibold ${data.growthPercentage >= 0 ? "text-emerald-400" : "text-rose-300"}`}>
+                        {data.growthPercentage >= 0 ? "+" : ""}
+                        {data.growthPercentage}%
+                      </span>{" "}
+                      ({data.growthLabel}).
+                    </>
+                  )}{" "}
+                  {data.deadStockCount > 0 &&
+                    `${data.deadStockCount} product${data.deadStockCount === 1 ? "" : "s"} had no sales in the last ${data.deadStockWindowDays} days.`}
+                </>
+              ) : (
+                "Once you bill customers, this banner shows your best-selling category, monthly growth and slow-moving stock."
+              )}
             </p>
           </div>
 
           {/* AI Stat Mini Grid */}
           <div className="grid grid-cols-2 gap-4 shrink-0 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-xs">
             <div className="flex flex-col">
-              <span className="text-[11px] text-indigo-200 font-medium">Predicted Sales</span>
-              <span className="text-lg font-bold text-white mt-0.5">
-                {formatINR(overview.predictedNextMonthSalesINR)}
-              </span>
+              <span className="text-[11px] text-indigo-200 font-medium">Predicted Next Month</span>
+              <span className="text-lg font-bold text-white mt-0.5">{predicted.value}</span>
+              <span className="text-[10px] text-indigo-300">{predicted.hint}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] text-indigo-200 font-medium">Restock Actions</span>
-              <span className="text-lg font-bold text-amber-300 mt-0.5">
-                {overview.recommendedRestockCount} Products
-              </span>
+              <span className="text-lg font-bold text-amber-300 mt-0.5">{data.restockCount} Products</span>
+              <span className="text-[10px] text-indigo-300">At or below reorder level</span>
             </div>
           </div>
         </div>

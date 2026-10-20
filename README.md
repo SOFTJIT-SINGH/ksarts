@@ -38,7 +38,7 @@ This project solves that by providing a DSS that pairs a modern light-theme web 
 - Supabase Storage, bucket `fabric-images`, for product fabric image uploads
 
 **Deployment**
-- Vercel (Next.js); Flask optional and deployable separately (local or Render) since the app falls back to mock predictions when Flask is offline
+- Vercel (Next.js); Flask optional and deployable separately (local or Render). Without Flask the AI screens show an "AI offline" notice and everything else keeps working from the database
 
 ---
 
@@ -79,7 +79,7 @@ This project solves that by providing a DSS that pairs a modern light-theme web 
 +------------------------+  +---------------------+  +---------------------------+
 ```
 
-The Flask microservice is fully decoupled: Next.js never trains models directly, and the app works 100% without it via the mock fallback in `lib/services/ai-service.ts`.
+The Flask microservice is fully decoupled: Next.js never trains models directly, and the app keeps working without it (AI screens show "AI offline"; no invented numbers are ever displayed).
 
 ---
 
@@ -104,9 +104,9 @@ ksarts/
 ├── components/                     # Dashboard, layout, product, customer, sale modals
 ├── lib/
 │   ├── types/index.ts              # Product, Customer, Sale TypeScript interfaces
-│   ├── mock-data/textile-data.ts   # Indian textile domain mock datasets
+│   ├── mock-data/textile-data.ts   # Demo seed data for the Settings seeder only
 │   ├── actions/                    # Server Actions: product, customer, sale, seed, auth, system
-│   ├── services/ai-service.ts      # Next.js to Flask ML bridge with mock fallback
+│   ├── services/ai-service.ts      # Next.js to Flask ML bridge (offline-safe, no mock data)
 │   └── supabase/                   # client.ts, server.ts, middleware.ts
 ├── supabase/schema.sql             # Postgres schema (products, customers, sales, sale_items)
 ├── flask_service/
@@ -170,5 +170,5 @@ npm run lint       # ESLint
 - **Story:** walk examiners from the problem (manual ledgers, no forecasting) to the solution (DSS + 4 ML modules).
 - **Live demo path:** Executive Dashboard → Products → Sales (invoice build, GST, stock deduction) → AI Insights → Reports (PDF export) → Settings (auth roles, 1-Click seed).
 - **Explain each ML module:** RandomForest sales prediction, 30-day demand forecast, K-Means RFM clustering (VIP Wholesaler / Regular Retailer / At-Risk), Apriori bundle rules.
-- **Emphasize the decoupled architecture:** Next.js + Supabase + independent Flask service, and why the mock fallback keeps the site working without Flask.
+- **Emphasize the decoupled architecture:** Next.js + Supabase + independent Flask service, and why the site keeps working (AI screens say "AI offline") when Flask is stopped.
 - For full viva preparation, algorithm explanations, and expected examiner questions, see [`flask_service/VIVA_STUDENT_GUIDE.md`](flask_service/VIVA_STUDENT_GUIDE.md).

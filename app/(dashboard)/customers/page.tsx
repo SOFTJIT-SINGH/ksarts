@@ -2,7 +2,8 @@ import { Search, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { MOCK_CUSTOMERS } from "@/lib/mock-data/textile-data";
+import { EmptyState, ErrorBanner } from "@/components/ui/data-states";
+import { Users } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { CustomerModal } from "@/components/customers/customer-modal";
 import { getCustomersAction } from "@/lib/actions/customer-actions";
@@ -17,7 +18,7 @@ export default async function CustomersPage({
   await requireAdmin();
   const { q } = await searchParams;
   const res = await getCustomersAction();
-  const allCustomers = res.success && res.data && res.data.length > 0 ? res.data : MOCK_CUSTOMERS;
+  const allCustomers = res.data ?? [];
   const needle = (q ?? "").trim().toLowerCase();
   const customers = needle
     ? allCustomers.filter((c) =>
@@ -41,6 +42,16 @@ export default async function CustomersPage({
 
         <CustomerModal />
       </div>
+
+      {!res.success && <ErrorBanner message={res.error || "Customers could not be read."} />}
+      {res.success && allCustomers.length === 0 && (
+        <EmptyState
+          icon={Users}
+          title="No customers yet"
+          description="Add your first wholesale or retail customer to start billing them."
+          action={<CustomerModal />}
+        />
+      )}
 
       {/* Search + receivables summary */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs">

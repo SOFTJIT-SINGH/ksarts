@@ -1,7 +1,8 @@
 import { ProductModal } from "@/components/products/product-modal";
 import { ProductsTable } from "@/components/products/products-table";
 import { getProductsAction } from "@/lib/actions/product-actions";
-import { MOCK_PRODUCTS } from "@/lib/mock-data/textile-data";
+import { EmptyState, ErrorBanner } from "@/components/ui/data-states";
+import { Package } from "lucide-react";
 
 export default async function ProductsPage({
   searchParams,
@@ -10,7 +11,7 @@ export default async function ProductsPage({
 }) {
   const { q } = await searchParams;
   const res = await getProductsAction();
-  const products = res.success && res.data && res.data.length > 0 ? res.data : MOCK_PRODUCTS;
+  const products = res.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -28,8 +29,19 @@ export default async function ProductsPage({
         <ProductModal />
       </div>
 
-      {/* key remounts the table when the navbar search changes ?q= */}
-      <ProductsTable key={q ?? ""} products={products} initialQuery={q ?? ""} />
+      {!res.success && <ErrorBanner message={res.error || "Products could not be read."} />}
+
+      {res.success && products.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="No products yet"
+          description="Add your first fabric SKU, or load the demo catalogue from Settings (admin) to explore the app."
+          action={<ProductModal />}
+        />
+      ) : (
+        /* key remounts the table when the navbar search changes ?q= */
+        <ProductsTable key={q ?? ""} products={products} initialQuery={q ?? ""} />
+      )}
     </div>
   );
 }

@@ -91,61 +91,68 @@ def api_health():
 
 @app.route("/api/v1/predict/sales", methods=["GET"])
 def predict_sales():
-    """Predicts next month revenue based on live Supabase sales data."""
-    sales_data = get_supabase_data("sales")
-    
-    # Simple Fallback if no live data
-    if not sales_data or len(sales_data) == 0:
-        months = np.array([7, 8, 9]).reshape(-1, 1)
-        next_month_pred = float(sales_model.predict(months)[0]) if sales_model else 1850000.0
+    """
+    Forecasts next month's revenue from the REAL monthly sales stored in Supabase.
+
+    - 3+ months of data -> LinearRegression fitted on the monthly revenue series (trend)
+    - 1-2 months of data -> average of the available months (not enough history for a trend)
+    - no sales yet       -> no prediction (null), the UI shows an empty state
+    The forecast is trained on the fly on every request, so it always reflects the latest data.
+    """
+    from sklearn.linear_model import LinearRegression
+
+    sales_data = get_supabase_data("sales", "totalINR,created_at")
+    if not sales_data:
         return jsonify({
-            "overview": {
-                "predictedNextMonthSalesINR": round(next_month_pred),
-                "growthPercentage": 14.2,
-                "highDemandCategory": "Silk Sarees",
-                "predictedDeadStockItemsCount": 4,
-                "recommendedRestockCount": 6
-            },
-            "forecast": [
-                {"month": "Aug (Pred)", "actualSalesINR": 0, "predictedSalesINR": round(next_month_pred)}
-            ]
+            "predictedNextMonthSalesINR": None,
+            "method": "no-data",
+            "monthsOfData": 0,
+            "forecast": []
         })
 
-    # Convert live data to Pandas for processing
     df = pd.DataFrame(sales_data)
-    df['created_at'] = pd.to_datetime(df['created_at'])
-    df['month'] = df['created_at'].dt.month
-    monthly_sales = df.groupby('month')['totalINR'].sum().reset_index()
-    
-    # Extremely basic trend analysis using our model or live calculations
-    current_month_index = len(monthly_sales)
-    months_input = np.array([current_month_index + 1]).reshape(-1, 1)
-    
-    next_month_pred = float(sales_model.predict(months_input)[0]) if sales_model else 1850000.0
-    
-    # Construct response
+    df["created_at"] = pd.to_datetime(df["created_at"], utc=True).dt.tz_convert("Asia/Kolkata")
+    df["totalINR"] = pd.to_numeric(df["totalINR"], errors="coerce").fillna(0)
+    df["period"] = df["created_at"].dt.strftime("%Y-%m")
+    monthly = df.groupby("period")["totalINR"].sum().sort_index()
+
+    n = len(monthly)
+    revenue = monthly.values.astype(float)
+
+    if n >= 3:
+        x = np.arange(n).reshape(-1, 1)
+        model = LinearRegression().fit(x, revenue)
+        fitted = model.predict(x)
+        next_pred = float(model.predict(np.array([[n]]))[0])
+        method = "linear-trend"
+    else:
+        fitted = np.full(n, revenue.mean())
+        next_pred = float(revenue.mean())
+        method = "average"
+
+    next_pred = max(0.0, next_pred)
+
+    def label(period):
+        return pd.Timestamp(period + "-01").strftime("%b %y")
+
     forecast = []
-    for _, row in monthly_sales.iterrows():
+    for i, period in enumerate(monthly.index):
         forecast.append({
-            "month": f"M{int(row['month'])}",
-            "actualSalesINR": float(row['totalINR']),
-            "predictedSalesINR": float(row['totalINR']) * 0.95  # Mock historical prediction
+            "month": label(period),
+            "actualSalesINR": float(revenue[i]),
+            "predictedSalesINR": float(fitted[i]) if method == "linear-trend" else None
         })
-        
+    last_period = pd.Timestamp(monthly.index[-1] + "-01")
     forecast.append({
-        "month": "Next (Pred)",
-        "actualSalesINR": 0,
-        "predictedSalesINR": round(next_month_pred)
+        "month": (last_period + pd.DateOffset(months=1)).strftime("%b %y") + " (forecast)",
+        "actualSalesINR": None,
+        "predictedSalesINR": round(next_pred)
     })
 
     return jsonify({
-        "overview": {
-            "predictedNextMonthSalesINR": round(next_month_pred),
-            "growthPercentage": 12.5,
-            "highDemandCategory": "Silk Sarees",
-            "predictedDeadStockItemsCount": 2,
-            "recommendedRestockCount": 5
-        },
+        "predictedNextMonthSalesINR": round(next_pred),
+        "method": method,
+        "monthsOfData": int(n),
         "forecast": forecast
     })
 
@@ -249,25 +256,11 @@ def predict_bundles():
             baskets.setdefault(item["saleId"], set()).add(item["productName"])
     transactions = [sorted(names) for names in baskets.values() if len(names) > 0]
 
-    # Fallback to sample bundles if there isn't enough live data to run Apriori
+    # Not enough real invoices to mine rules -> say so instead of inventing sample bundles
     if len(transactions) < 5:
         return jsonify({
-            "bundles": [
-                {
-                    "id": "mock-bundle-1",
-                    "items": ["Banarasi Silk Saree", "Zardozi Dupatta"],
-                    "description": "84% of wholesale buyers purchasing Banarasi Sarees also order matching Dupattas.",
-                    "confidence": 0.84,
-                    "lift": 2.1
-                },
-                {
-                    "id": "mock-bundle-2",
-                    "items": ["Cotton Kurti Fabric", "Linen Trouser Material"],
-                    "description": "65% of customers buying Kurti fabric pair it with Linen trouser material.",
-                    "confidence": 0.65,
-                    "lift": 1.8
-                }
-            ]
+            "bundles": [],
+            "reason": f"Need at least 5 invoices with items (found {len(transactions)})."
         })
 
     # Need at least a few transactions with multiple items to find rules

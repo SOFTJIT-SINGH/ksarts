@@ -1,7 +1,8 @@
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { MOCK_SALES } from "@/lib/mock-data/textile-data";
+import { EmptyState, ErrorBanner } from "@/components/ui/data-states";
+import { ShoppingCart } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { SaleModal } from "@/components/sales/sale-modal";
 import { getSalesAction } from "@/lib/actions/sale-actions";
@@ -15,7 +16,7 @@ export default async function SalesPage({
 }) {
   const { q } = await searchParams;
   const [res, { profile: business }] = await Promise.all([getSalesAction(), getBusinessProfileAction()]);
-  const allSales = res.success && res.data && res.data.length > 0 ? res.data : MOCK_SALES;
+  const allSales = res.data ?? [];
   const needle = (q ?? "").trim().toLowerCase();
   const sales = needle
     ? allSales.filter((s) =>
@@ -41,6 +42,16 @@ export default async function SalesPage({
 
         <SaleModal />
       </div>
+
+      {!res.success && <ErrorBanner message={res.error || "Invoices could not be read."} />}
+      {res.success && allSales.length === 0 && (
+        <EmptyState
+          icon={ShoppingCart}
+          title="No invoices yet"
+          description="Create your first sale invoice. It will appear here with its GST breakup and a PDF download."
+          action={<SaleModal />}
+        />
+      )}
 
       {/* Search */}
       <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
