@@ -6,6 +6,7 @@ import { formatINR } from "@/lib/utils";
 import { SaleModal } from "@/components/sales/sale-modal";
 import { getSalesAction } from "@/lib/actions/sale-actions";
 import { InvoicePdfButton } from "@/components/sales/invoice-pdf-button";
+import { getBusinessProfileAction } from "@/lib/actions/business-actions";
 
 export default async function SalesPage({
   searchParams,
@@ -13,7 +14,7 @@ export default async function SalesPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const res = await getSalesAction();
+  const [res, { profile: business }] = await Promise.all([getSalesAction(), getBusinessProfileAction()]);
   const allSales = res.success && res.data && res.data.length > 0 ? res.data : MOCK_SALES;
   const needle = (q ?? "").trim().toLowerCase();
   const sales = needle
@@ -93,7 +94,7 @@ export default async function SalesPage({
                       {formatINR(sale.totalINR)}
                     </td>
                     <td className="px-4 py-3.5 text-center">
-                      <InvoicePdfButton sale={sale} />
+                      <InvoicePdfButton sale={sale} business={business} />
                     </td>
                   </tr>
                 ))}

@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { SystemStatusCard } from "@/components/settings/system-status-card";
 import { UserManagementCard } from "@/components/settings/user-management";
 import { BusinessProfileCard, QuickActionsCard } from "@/components/settings/business-config";
+import { getBusinessProfileAction } from "@/lib/actions/business-actions";
 
 export default async function SettingsPage() {
   const user = await requireAdmin();
   const isAdmin = true;
+  const { profile, needsSetup } = await getBusinessProfileAction();
 
   return (
     <div className="space-y-6">
@@ -30,6 +32,9 @@ export default async function SettingsPage() {
           name={user?.fullName || "Khushi Soni"}
           email={user?.email || "ksonisarees@gmail.com"}
           role={user?.role || "admin"}
+          profile={profile}
+          canEdit={isAdmin}
+          needsSetup={needsSetup}
         />
         <QuickActionsCard />
       </div>

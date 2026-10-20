@@ -89,3 +89,20 @@ CREATE POLICY "Allow public read/write access to products" ON products FOR ALL U
 CREATE POLICY "Allow public read/write access to customers" ON customers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read/write access to sales" ON sales FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read/write access to sale_items" ON sale_items FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. BUSINESS SETTINGS TABLE (single row, edited by the Admin on the Settings page)
+-- The same SQL is available on its own in supabase/business_settings.sql
+CREATE TABLE IF NOT EXISTS business_settings (
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  "businessName" TEXT NOT NULL DEFAULT 'KS Arts — Textile Wholesale',
+  address TEXT NOT NULL DEFAULT 'Amritsar, Punjab, India',
+  phone TEXT NOT NULL DEFAULT '+91 98765 43210',
+  email TEXT NOT NULL DEFAULT 'ksonisarees@gmail.com',
+  gstin TEXT NOT NULL DEFAULT '',
+  pan TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_by TEXT
+);
+INSERT INTO business_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+ALTER TABLE business_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read/write access to business_settings" ON business_settings FOR ALL USING (true) WITH CHECK (true);

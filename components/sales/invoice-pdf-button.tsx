@@ -5,6 +5,7 @@ import { Download, Loader2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/utils";
 import { SaleTransaction } from "@/lib/types";
+import { DEFAULT_BUSINESS_PROFILE, type BusinessProfile } from "@/lib/business-profile";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -14,7 +15,13 @@ function formatInvoiceDate(createdAt: string): string {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : createdAt;
 }
 
-export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
+export function InvoicePdfButton({
+  sale,
+  business = DEFAULT_BUSINESS_PROFILE,
+}: {
+  sale: SaleTransaction;
+  business?: BusinessProfile;
+}) {
   const [isGenerating, setIsGenerating] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
 
@@ -129,12 +136,14 @@ export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#4f46e5" }}>
                 <Building2 size={28} />
-                <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "bold" }}>KS Vision AI</h1>
+                <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "bold" }}>{business.businessName}</h1>
               </div>
               <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>
-                Amritsar, Punjab, India<br />
-                GSTIN: 03AXXXX1234X1Z5<br />
-                ksonisarees@gmail.com
+                {business.address}<br />
+                {business.gstin ? <>GSTIN: {business.gstin}<br /></> : null}
+                {business.pan ? <>PAN: {business.pan}<br /></> : null}
+                {business.phone}<br />
+                {business.email}
               </p>
             </div>
             <div style={{ textAlign: "right" }}>
@@ -235,7 +244,7 @@ export function InvoicePdfButton({ sale }: { sale: SaleTransaction }) {
 
           {/* Footer Notes */}
           <div style={{ marginTop: "60px", paddingTop: "20px", borderTop: "1px solid #e2e8f0", fontSize: "11px", color: "#94a3b8", textAlign: "center" }}>
-            <p style={{ margin: "0 0 4px" }}>Thank you for doing business with KS Vision AI.</p>
+            <p style={{ margin: "0 0 4px" }}>Thank you for doing business with {business.businessName}.</p>
             <p style={{ margin: 0 }}>This is a computer-generated document and does not require a signature.</p>
           </div>
         </div>
